@@ -1,11 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { CircleHelp, Bell } from "lucide-react";
 import appIcon from "@/assets/app-icon.svg";
-import { AppHeader } from "@/components/ui/app-header";
-import { AppName } from "@/components/ui/app-name";
-import { ActionIconButton, ActionAvatarButton } from "@/components/ui/actions";
-import { AppMenu, type AppMenuGroup } from "@/components/ui/app-menu";
-import { CXoneLogo } from "@/components/ui/cxone-logo";
+import {
+  AppHeader,
+  AppName,
+  ActionIconButton,
+  ActionAvatarButton,
+  AppMenu,
+  CXoneLogo,
+  type AppMenuGroup,
+} from "@nicecxone/lyra-ui";
 
 const appMenuGroups: AppMenuGroup[] = [
   {

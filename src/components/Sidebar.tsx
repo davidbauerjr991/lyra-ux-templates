@@ -5,7 +5,7 @@ import {
   FileText,
   PencilRuler,
 } from "lucide-react";
-import { LeftNav, type NavItem } from "@/components/ui/left-nav";
+import { LeftNav, type NavItem } from "@nicecxone/lyra-ui";
 
 const navItems: NavItem[] = [
   { icon: <Monitor className="h-4 w-4" strokeWidth={1.5} />, label: "Monitor" },

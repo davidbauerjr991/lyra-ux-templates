@@ -14,18 +14,19 @@ import {
   Minus,
   Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { TabList, Tab } from "@/components/ui/tabs";
-import { SearchInput } from "@/components/ui/search-input";
 import {
+  Button,
+  Checkbox,
+  TabList,
+  Tab,
+  SearchInput,
   Table,
   TableHeader,
   TableBody,
   TableRow,
   TableHead,
   TableCell,
-} from "@/components/ui/table";
+} from "@nicecxone/lyra-ui";
 
 /* ── Mock data ── */
 interface DesktopRecord {

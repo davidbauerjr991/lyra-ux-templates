@@ -1,11 +1,14 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
-  content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{ts,tsx,js,jsx}",
+    "./node_modules/@nicecxone/lyra-ui/dist/**/*.js",
+  ],
   theme: {
     extend: {
       colors: {
-        /* ── Lyra Semantic: Background ── */
         "lyra-bg-surface-base": "var(--lyra-bg-surface-base)",
         "lyra-bg-surface-canvas": "var(--lyra-bg-surface-canvas)",
         "lyra-bg-surface-container": "var(--lyra-bg-surface-container)",
@@ -24,8 +27,6 @@ export default {
         "lyra-bg-active-strong": "var(--lyra-bg-active-strong)",
         "lyra-bg-active-moderate": "var(--lyra-bg-active-moderate)",
         "lyra-bg-active-subtle": "var(--lyra-bg-active-subtle)",
-
-        /* ── Lyra Semantic: Foreground / Text ── */
         "lyra-fg-default": "var(--lyra-fg-default)",
         "lyra-fg-secondary": "var(--lyra-fg-secondary)",
         "lyra-fg-action": "var(--lyra-fg-action)",
@@ -35,8 +36,6 @@ export default {
         "lyra-fg-on-primary": "var(--lyra-fg-on-primary)",
         "lyra-fg-active-subtle": "var(--lyra-fg-active-subtle)",
         "lyra-fg-active-strong": "var(--lyra-fg-active-strong)",
-
-        /* ── Lyra Semantic: Border ── */
         "lyra-border-subtle": "var(--lyra-border-subtle)",
         "lyra-border-default": "var(--lyra-border-default)",
         "lyra-border-medium": "var(--lyra-border-medium)",
@@ -45,16 +44,12 @@ export default {
         "lyra-border-active": "var(--lyra-border-active)",
         "lyra-border-inverse": "var(--lyra-border-inverse)",
         "lyra-border-focus": "var(--lyra-border-focus-default)",
-
-        /* ── Lyra Status ── */
         "lyra-status-success-strong": "var(--lyra-status-success-strong)",
         "lyra-status-success-medium": "var(--lyra-status-success-medium)",
         "lyra-status-success-subtle": "var(--lyra-status-success-subtle)",
         "lyra-status-info-strong": "var(--lyra-status-info-strong)",
         "lyra-status-critical-strong": "var(--lyra-status-critical-strong)",
         "lyra-status-warning-strong": "var(--lyra-status-warning-strong)",
-
-        /* ── Lyra State ── */
         "lyra-state-hover": "var(--lyra-state-hover-opacity)",
         "lyra-state-pressed": "var(--lyra-state-pressed-opacity)",
         "lyra-state-hover-primary": "var(--lyra-state-hover-primary)",
@@ -63,8 +58,6 @@ export default {
         "lyra-state-pressed-active-subtle": "var(--lyra-state-pressed-active-subtle)",
         "lyra-state-hover-destructive": "var(--lyra-state-hover-destructive)",
         "lyra-state-pressed-destructive": "var(--lyra-state-pressed-destructive)",
-
-        /* ── NICE CXone Brand ── */
         "cxone-navy": "#2a2d32",
       },
       borderRadius: {
@@ -77,13 +70,7 @@ export default {
         "lyra-round": "var(--lyra-radius-round)",
       },
       fontFamily: {
-        sans: [
-          "Inter",
-          "ui-sans-serif",
-          "system-ui",
-          "-apple-system",
-          "sans-serif",
-        ],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
       },
     },
   },
