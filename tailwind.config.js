@@ -1,0 +1,91 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
+  theme: {
+    extend: {
+      colors: {
+        /* ── Lyra Semantic: Background ── */
+        "lyra-bg-surface-base": "var(--lyra-bg-surface-base)",
+        "lyra-bg-surface-canvas": "var(--lyra-bg-surface-canvas)",
+        "lyra-bg-surface-container": "var(--lyra-bg-surface-container)",
+        "lyra-bg-surface-container-subtle": "var(--lyra-bg-surface-container-subtle)",
+        "lyra-bg-surface-shell": "var(--lyra-bg-surface-shell)",
+        "lyra-bg-surface-backdrop": "var(--lyra-bg-surface-backdrop)",
+        "lyra-bg-surface-overlay": "var(--lyra-bg-surface-overlay)",
+        "lyra-bg-surface-inverse": "var(--lyra-bg-surface-inverse)",
+        "lyra-bg-primary": "var(--lyra-bg-primary)",
+        "lyra-bg-secondary": "var(--lyra-bg-secondary)",
+        "lyra-bg-destructive": "var(--lyra-bg-destructive)",
+        "lyra-bg-control": "var(--lyra-bg-control)",
+        "lyra-bg-control-subtle": "var(--lyra-bg-control-subtle)",
+        "lyra-bg-field": "var(--lyra-bg-field)",
+        "lyra-bg-disabled": "var(--lyra-bg-disabled)",
+        "lyra-bg-active-strong": "var(--lyra-bg-active-strong)",
+        "lyra-bg-active-moderate": "var(--lyra-bg-active-moderate)",
+        "lyra-bg-active-subtle": "var(--lyra-bg-active-subtle)",
+
+        /* ── Lyra Semantic: Foreground / Text ── */
+        "lyra-fg-default": "var(--lyra-fg-default)",
+        "lyra-fg-secondary": "var(--lyra-fg-secondary)",
+        "lyra-fg-action": "var(--lyra-fg-action)",
+        "lyra-fg-disabled": "var(--lyra-fg-disabled)",
+        "lyra-fg-link": "var(--lyra-fg-link)",
+        "lyra-fg-inverse": "var(--lyra-fg-inverse)",
+        "lyra-fg-on-primary": "var(--lyra-fg-on-primary)",
+        "lyra-fg-active-subtle": "var(--lyra-fg-active-subtle)",
+        "lyra-fg-active-strong": "var(--lyra-fg-active-strong)",
+
+        /* ── Lyra Semantic: Border ── */
+        "lyra-border-subtle": "var(--lyra-border-subtle)",
+        "lyra-border-default": "var(--lyra-border-default)",
+        "lyra-border-medium": "var(--lyra-border-medium)",
+        "lyra-border-strong": "var(--lyra-border-strong)",
+        "lyra-border-disabled": "var(--lyra-border-disabled)",
+        "lyra-border-active": "var(--lyra-border-active)",
+        "lyra-border-inverse": "var(--lyra-border-inverse)",
+        "lyra-border-focus": "var(--lyra-border-focus-default)",
+
+        /* ── Lyra Status ── */
+        "lyra-status-success-strong": "var(--lyra-status-success-strong)",
+        "lyra-status-success-medium": "var(--lyra-status-success-medium)",
+        "lyra-status-success-subtle": "var(--lyra-status-success-subtle)",
+        "lyra-status-info-strong": "var(--lyra-status-info-strong)",
+        "lyra-status-critical-strong": "var(--lyra-status-critical-strong)",
+        "lyra-status-warning-strong": "var(--lyra-status-warning-strong)",
+
+        /* ── Lyra State ── */
+        "lyra-state-hover": "var(--lyra-state-hover-opacity)",
+        "lyra-state-pressed": "var(--lyra-state-pressed-opacity)",
+        "lyra-state-hover-primary": "var(--lyra-state-hover-primary)",
+        "lyra-state-pressed-primary": "var(--lyra-state-pressed-primary)",
+        "lyra-state-hover-active-subtle": "var(--lyra-state-hover-active-subtle)",
+        "lyra-state-pressed-active-subtle": "var(--lyra-state-pressed-active-subtle)",
+        "lyra-state-hover-destructive": "var(--lyra-state-hover-destructive)",
+        "lyra-state-pressed-destructive": "var(--lyra-state-pressed-destructive)",
+
+        /* ── NICE CXone Brand ── */
+        "cxone-navy": "#2a2d32",
+      },
+      borderRadius: {
+        "lyra-none": "var(--lyra-radius-none)",
+        "lyra-xs": "var(--lyra-radius-xs)",
+        "lyra-sm": "var(--lyra-radius-sm)",
+        "lyra-md": "var(--lyra-radius-md)",
+        "lyra-lg": "var(--lyra-radius-lg)",
+        "lyra-xl": "var(--lyra-radius-xl)",
+        "lyra-round": "var(--lyra-radius-round)",
+      },
+      fontFamily: {
+        sans: [
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "sans-serif",
+        ],
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+};

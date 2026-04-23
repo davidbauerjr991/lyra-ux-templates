@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ════════════════════════════════════════════════════
+   Lyra Foundations (Beta) — Design Tokens
+   Mapped from Figma Semantic Colors & Semantic Sizes
+   ════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Background ── */
+  --lyra-bg-surface-base: #ffffff;
+  --lyra-bg-surface-canvas: #fcfcfd;
+  --lyra-bg-surface-container: #ffffff;
+  --lyra-bg-surface-container-subtle: #fcfcfd;
+  --lyra-bg-surface-shell: #f3f5f6;
+  --lyra-bg-surface-backdrop: rgba(0, 0, 0, 0.24);
+  --lyra-bg-surface-overlay: #ffffff;
+  --lyra-bg-surface-inverse: #2a2d32;
+  --lyra-bg-primary: #166cca;
+  --lyra-bg-secondary: #ffffff;
+  --lyra-bg-destructive: #bc2626;
+  --lyra-bg-control: #ffffff;
+  --lyra-bg-control-subtle: rgba(0, 0, 0, 0.02);
+  --lyra-bg-field: #ffffff;
+  --lyra-bg-field-ai: rgba(143, 115, 227, 0.04);
+  --lyra-bg-disabled: rgba(0, 0, 0, 0.06);
+  --lyra-bg-none: rgba(0, 0, 0, 0.00);
+  --lyra-bg-active-strong: #166cca;
+  --lyra-bg-active-moderate: rgba(44, 138, 242, 0.18);
+  --lyra-bg-active-subtle: #ecf5fe;
+
+  /* ── Foreground / Text ── */
+  --lyra-fg-default: rgba(0, 0, 0, 0.80);
+  --lyra-fg-secondary: rgba(0, 0, 0, 0.56);
+  --lyra-fg-action: #49515a;
+  --lyra-fg-disabled: rgba(0, 0, 0, 0.30);
+  --lyra-fg-link: #185ba4;
+  --lyra-fg-inverse: #ffffff;
+  --lyra-fg-inverse-disabled: rgba(255, 255, 255, 0.30);
+  --lyra-fg-on-primary: #ffffff;
+  --lyra-fg-on-destructive: #ffffff;
+  --lyra-fg-active-subtle: #f5faff;
+  --lyra-fg-active-strong: #185ba4;
+
+  /* ── Border ── */
+  --lyra-border-subtle: rgba(0, 0, 0, 0.08);
+  --lyra-border-default: rgba(0, 0, 0, 0.16);
+  --lyra-border-medium: rgba(0, 0, 0, 0.32);
+  --lyra-border-strong: rgba(0, 0, 0, 0.46);
+  --lyra-border-disabled: rgba(0, 0, 0, 0.10);
+  --lyra-border-active: #166cca;
+  --lyra-border-field-ai: #4e39a8;
+  --lyra-border-inverse: rgba(255, 255, 255, 0.80);
+  --lyra-border-none: rgba(0, 0, 0, 0.00);
+  --lyra-border-focus-default: #185ba4;
+  --lyra-border-focus-inverse: #fcce36;
+
+  /* ── Status ── */
+  --lyra-status-success-strong: #21742c;
+  --lyra-status-success-medium: #5ac368;
+  --lyra-status-success-subtle: #ebfaed;
+  --lyra-status-info-strong: #2558c1;
+  --lyra-status-info-medium: #709cf5;
+  --lyra-status-info-subtle: #f0f5ff;
+  --lyra-status-critical-strong: #bc2626;
+  --lyra-status-critical-medium: #fa7f7f;
+  --lyra-status-critical-subtle: #fff0f0;
+  --lyra-status-warning-strong: #8e6800;
+  --lyra-status-warning-medium: #fcce36;
+  --lyra-status-warning-subtle: #fffae0;
+
+  /* ── State ── */
+  --lyra-state-hover-opacity: rgba(0, 0, 0, 0.04);
+  --lyra-state-pressed-opacity: rgba(0, 0, 0, 0.08);
+  --lyra-state-hover-secondary: #fcfcfd;
+  --lyra-state-pressed-secondary: #f3f5f6;
+  --lyra-state-hover-active-subtle: #e4f2ff;
+  --lyra-state-pressed-active-subtle: #c8e1fe;
+  --lyra-state-hover-active-strong: #185ba4;
+  --lyra-state-pressed-active-strong: #164479;
+  --lyra-state-hover-primary: #185ba4;
+  --lyra-state-pressed-primary: #164479;
+  --lyra-state-hover-destructive: #902222;
+  --lyra-state-pressed-destructive: #6d2222;
+  --lyra-state-hover-border-neutral: rgba(0, 0, 0, 0.80);
+
+  /* ── Accent ── */
+  --lyra-accent-slate-soft: #e8ebed;
+  --lyra-accent-slate-strong: #5d6a79;
+  --lyra-accent-red-soft: #ffdbdb;
+  --lyra-accent-red-strong: #bc2626;
+  --lyra-accent-orange-soft: #ffe2c7;
+  --lyra-accent-orange-strong: #a64f00;
+  --lyra-accent-yellow-soft: #fff3ad;
+  --lyra-accent-yellow-strong: #8e6800;
+  --lyra-accent-lime-soft: #def6a7;
+  --lyra-accent-lime-strong: #4e760c;
+  --lyra-accent-green-soft: #d2f4d5;
+  --lyra-accent-green-strong: #21742c;
+  --lyra-accent-teal-soft: #c4f0f3;
+  --lyra-accent-teal-strong: #11737c;
+  --lyra-accent-blue-soft: #d6e4ff;
+  --lyra-accent-blue-strong: #2558c1;
+  --lyra-accent-purple-soft: #e6e0ff;
+  --lyra-accent-purple-strong: #6149c1;
+  --lyra-accent-pink-soft: #ffe0f5;
+  --lyra-accent-pink-strong: #b53389;
+
+  /* ── Border Radius ── */
+  --lyra-radius-none: 0px;
+  --lyra-radius-xs: 4px;
+  --lyra-radius-sm: 6px;
+  --lyra-radius-md: 8px;
+  --lyra-radius-lg: 12px;
+  --lyra-radius-xl: 16px;
+  --lyra-radius-round: 999px;
+
+  /* ── Spacing (4px base unit) ── */
+  --lyra-spacing-0: 0px;
+  --lyra-spacing-1: 4px;
+  --lyra-spacing-2: 8px;
+  --lyra-spacing-3: 12px;
+  --lyra-spacing-4: 16px;
+  --lyra-spacing-5: 20px;
+  --lyra-spacing-6: 24px;
+  --lyra-spacing-7: 28px;
+  --lyra-spacing-8: 32px;
+  --lyra-spacing-9: 36px;
+
+  /* ── Border Width ── */
+  --lyra-border-width-none: 0px;
+  --lyra-border-width-default: 1px;
+  --lyra-border-width-md: 2px;
+  --lyra-border-width-lg: 3px;
+}
+
+/* ── Base resets ── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color: var(--lyra-fg-default);
+  background: var(--lyra-bg-surface-shell);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ════════════════════════════════════════════════════
+   Lyra Typography Scale (Inter)
+   From Figma: Lyra Foundations (Beta)
+   ════════════════════════════════════════════════════ */
+
+/* Headings */
+.lyra-heading-xl { font-size: 24px; line-height: 28px; font-weight: 500; letter-spacing: -0.02rem; }
+.lyra-heading-lg { font-size: 20px; line-height: 24px; font-weight: 500; letter-spacing: -0.01rem; }
+.lyra-heading-md { font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: -0.01rem; }
+.lyra-heading-sm { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0; }
+.lyra-heading-xs { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01rem; }
+
+/* Body */
+.lyra-body-lg          { font-size: 16px; line-height: 24px; font-weight: 400; letter-spacing: -0.01rem; }
+.lyra-body-lg-emphasis { font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: -0.01rem; }
+.lyra-body-md          { font-size: 14px; line-height: 20px; font-weight: 400; letter-spacing: 0; }
+.lyra-body-md-emphasis { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0; }
+.lyra-body-sm          { font-size: 12px; line-height: 16px; font-weight: 400; letter-spacing: 0.01rem; }
+.lyra-body-sm-emphasis { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01rem; }
+
+/* Label */
+.lyra-label { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0; }
+
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c7cd;
+  border-radius: 3px;
+}
