@@ -10,12 +10,13 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronDown,
   Minus,
-  Sparkles,
 } from "lucide-react";
+
 import {
   Button,
+  AiIcon,
+  PageHeader,
   Checkbox,
   TabList,
   Tab,
@@ -26,7 +27,10 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  SortableTableHead,
+  useColumnReorder,
 } from "@nicecxone/lyra-ui";
+import type { SortDirection } from "@nicecxone/lyra-ui";
 
 /* ── Mock data ── */
 interface DesktopRecord {
@@ -60,7 +64,21 @@ const records: DesktopRecord[] = [
   { id: 16, name: "Agent Desktop #16", published: true, customerCard: "—", description: "Utilities", createdBy: "Jim Smith", createdDate: "02/23/2025 02:32...", modifiedDate: "02/23/2025 02:32...", version: 27 },
 ];
 
-export function DesktopDesignsPage() {
+interface DesktopDesignsPageProps {
+  panelOpen?: boolean;
+  panelPinned?: boolean;
+  onPanelToggle?: () => void;
+  onPanelHoverStart?: () => void;
+  onPanelHoverEnd?: () => void;
+}
+
+export function DesktopDesignsPage({
+  panelOpen,
+  panelPinned = true,
+  onPanelToggle,
+  onPanelHoverStart,
+  onPanelHoverEnd,
+}: DesktopDesignsPageProps) {
   const [activeTab, setActiveTab] = useState<"library" | "templates">(
     "library"
   );
@@ -69,18 +87,63 @@ export function DesktopDesignsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
 
+  type ColKey = "name" | "published" | "customerCard" | "description" | "createdBy" | "createdDate" | "modifiedDate" | "version";
+  type SortKey = Exclude<ColKey, "published" | "customerCard">;
+
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDirection>(null);
+
+  const { columnOrder, dragOverKey, dragHandlers } = useColumnReorder<ColKey>([
+    "name", "published", "customerCard", "description", "createdBy", "createdDate", "modifiedDate", "version",
+  ]);
+
+  const columnConfig: Record<ColKey, { label: string; flex: string; sortable: boolean }> = {
+    name:         { label: "Name",          flex: "flex-[2] min-w-[140px]",  sortable: true },
+    published:    { label: "Published",     flex: "flex-1 min-w-[80px]",     sortable: false },
+    customerCard: { label: "Customer Card", flex: "flex-[1.3] min-w-[100px]", sortable: false },
+    description:  { label: "Description",   flex: "flex-[2] min-w-[140px]",  sortable: true },
+    createdBy:    { label: "Created By",    flex: "flex-[1.3] min-w-[100px]", sortable: true },
+    createdDate:  { label: "Created Date",  flex: "flex-[2] min-w-[140px]",  sortable: true },
+    modifiedDate: { label: "Modified Date", flex: "flex-[2] min-w-[140px]",  sortable: true },
+    version:      { label: "Version",       flex: "flex-1 min-w-[60px]",     sortable: true },
+  };
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      const next: SortDirection = sortDir === null ? "asc" : sortDir === "asc" ? "desc" : null;
+      setSortDir(next);
+      if (next === null) setSortKey(null);
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  function dirFor(key: SortKey): SortDirection {
+    return sortKey === key ? sortDir : null;
+  }
+
   const filteredRecords = records.filter(
     (r) =>
       r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage));
+  const sortedRecords = [...filteredRecords].sort((a, b) => {
+    if (!sortKey || !sortDir) return 0;
+    const aVal = String(a[sortKey]).toLowerCase();
+    const bVal = String(b[sortKey]).toLowerCase();
+    if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sortedRecords.length / rowsPerPage));
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * rowsPerPage;
-  const paginatedRecords = filteredRecords.slice(startIndex, startIndex + rowsPerPage);
-  const displayStart = filteredRecords.length > 0 ? startIndex + 1 : 0;
-  const displayEnd = Math.min(startIndex + rowsPerPage, filteredRecords.length);
+  const paginatedRecords = sortedRecords.slice(startIndex, startIndex + rowsPerPage);
+  const displayStart = sortedRecords.length > 0 ? startIndex + 1 : 0;
+  const displayEnd = Math.min(startIndex + rowsPerPage, sortedRecords.length);
 
   const allSelected =
     paginatedRecords.length > 0 &&
@@ -116,21 +179,25 @@ export function DesktopDesignsPage() {
   return (
     <main className="flex flex-1 flex-col overflow-hidden bg-lyra-bg-surface-base">
       {/* ════ Lyra Component Header ════ */}
-      <div className="flex items-center justify-between border-b border-lyra-border-subtle px-6 py-4">
-        <h1 className="lyra-heading-lg text-lyra-fg-default">
-          Desktop Designs
-        </h1>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            Publish
-          </Button>
-          <Button size="sm">Add</Button>
-          <Button variant="icon" size="icon" title="AI Assist">
-            <Sparkles className="h-4 w-4" strokeWidth={1.5} />
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Desktop Library"
+        showPanelToggle
+        panelPinned={panelPinned}
+        onPanelToggle={onPanelToggle}
+        onPanelHoverStart={onPanelHoverStart}
+        onPanelHoverEnd={onPanelHoverEnd}
+        actions={
+          <>
+            <Button variant="outline" size="sm">Secondary</Button>
+            <Button size="sm">Primary</Button>
+            <div className="mx-1 h-6 w-px bg-lyra-border-subtle" />
+            <Button variant="outline" size="sm">
+              <AiIcon className="h-4 w-4" />
+              Ask AI
+            </Button>
+          </>
+        }
+      />
 
       {/* ════ Tabs ════ */}
       <TabList className="px-6">
@@ -138,7 +205,7 @@ export function DesktopDesignsPage() {
           active={activeTab === "library"}
           onClick={() => setActiveTab("library")}
         >
-          Desktop Library
+          Custom Desktops
         </Tab>
         <Tab
           active={activeTab === "templates"}
@@ -158,7 +225,7 @@ export function DesktopDesignsPage() {
             className="w-[260px]"
           />
           <span className="lyra-body-md text-lyra-fg-secondary">
-            {filteredRecords.length} Records
+            {sortedRecords.length} Records
           </span>
         </div>
 
@@ -189,14 +256,39 @@ export function DesktopDesignsPage() {
                     onCheckedChange={(checked) => toggleAll(!!checked)}
                   />
                 </TableHead>
-                <TableHead className="flex-[2] min-w-[140px]">Name</TableHead>
-                <TableHead className="flex-1 min-w-[80px]">Published</TableHead>
-                <TableHead className="flex-[1.3] min-w-[100px]">Customer Card</TableHead>
-                <TableHead className="flex-[2] min-w-[140px]">Description</TableHead>
-                <TableHead className="flex-[1.3] min-w-[100px]">Created By</TableHead>
-                <TableHead className="flex-[2] min-w-[140px]">Created Date</TableHead>
-                <TableHead className="flex-[2] min-w-[140px]">Modified Date</TableHead>
-                <TableHead className="flex-1 min-w-[60px]">Version</TableHead>
+                {columnOrder.map((key) => {
+                  const col = columnConfig[key];
+                  if (col.sortable) {
+                    return (
+                      <SortableTableHead
+                        key={key}
+                        className={col.flex}
+                        sortDirection={dirFor(key as SortKey)}
+                        onSort={() => handleSort(key as SortKey)}
+                        columnKey={key}
+                        dragHandlers={dragHandlers}
+                        isDragOver={dragOverKey === key}
+                      >
+                        {col.label}
+                      </SortableTableHead>
+                    );
+                  }
+                  return (
+                    <TableHead
+                      key={key}
+                      className={col.flex}
+                      draggable
+                      onDragStart={(e) => dragHandlers.onDragStart(e, key)}
+                      onDragOver={(e) => dragHandlers.onDragOver(e, key)}
+                      onDrop={(e) => dragHandlers.onDrop(e, key)}
+                      onDragEnd={dragHandlers.onDragEnd}
+                      onDragLeave={dragHandlers.onDragLeave}
+                      style={dragOverKey === key ? { backgroundColor: "var(--lyra-bg-active-moderate)" } : undefined}
+                    >
+                      {col.label}
+                    </TableHead>
+                  );
+                })}
                 <TableHead className="w-[48px] shrink-0"></TableHead>
               </TableRow>
             </TableHeader>
@@ -212,28 +304,28 @@ export function DesktopDesignsPage() {
                       onCheckedChange={() => toggleRow(record.id)}
                     />
                   </TableCell>
-                  <TableCell className="flex-[2] min-w-[140px] text-lyra-fg-link cursor-pointer hover:underline">
-                    {record.name}
-                  </TableCell>
-                  <TableCell className="flex-1 min-w-[80px]">
-                    {record.published ? (
-                      <CircleCheck className="h-5 w-5 text-lyra-status-success-strong" strokeWidth={1.5} />
-                    ) : (
-                      <Minus className="h-5 w-5 text-lyra-fg-disabled" strokeWidth={1.5} />
-                    )}
-                  </TableCell>
-                  <TableCell className="flex-[1.3] min-w-[100px]">
-                    {record.customerCard}
-                  </TableCell>
-                  <TableCell className="flex-[2] min-w-[140px]">{record.description}</TableCell>
-                  <TableCell className="flex-[1.3] min-w-[100px]">{record.createdBy}</TableCell>
-                  <TableCell className="flex-[2] min-w-[140px]">
-                    {record.createdDate}
-                  </TableCell>
-                  <TableCell className="flex-[2] min-w-[140px]">
-                    {record.modifiedDate}
-                  </TableCell>
-                  <TableCell className="flex-1 min-w-[60px]">{record.version}</TableCell>
+                  {columnOrder.map((key) => {
+                    const col = columnConfig[key];
+                    if (key === "published") {
+                      return (
+                        <TableCell key={key} className={col.flex}>
+                          {record.published ? (
+                            <CircleCheck className="h-5 w-5 text-lyra-status-success-strong" strokeWidth={1.5} />
+                          ) : (
+                            <Minus className="h-5 w-5 text-lyra-fg-disabled" strokeWidth={1.5} />
+                          )}
+                        </TableCell>
+                      );
+                    }
+                    return (
+                      <TableCell
+                        key={key}
+                        className={`${col.flex}${key === "name" ? " text-lyra-fg-link cursor-pointer hover:underline" : ""}`}
+                      >
+                        {String(record[key as keyof DesktopRecord])}
+                      </TableCell>
+                    );
+                  })}
                   <TableCell className="w-[48px] shrink-0">
                     <button className="flex h-7 w-7 items-center justify-center rounded-lyra-sm text-lyra-fg-secondary hover:bg-lyra-bg-surface-shell transition-colors">
                       <MoreVertical className="h-4 w-4" strokeWidth={1.5} />
@@ -249,7 +341,7 @@ export function DesktopDesignsPage() {
       <div className="flex items-center justify-between border-t border-lyra-border-subtle px-6 py-2.5">
         <div className="flex items-center gap-2 lyra-body-sm text-lyra-fg-secondary">
           <span>
-            Displaying {displayStart}-{displayEnd} of {filteredRecords.length}
+            Displaying {displayStart}-{displayEnd} of {sortedRecords.length}
           </span>
           <span className="text-lyra-border-default">|</span>
           <span>Rows per page:</span>

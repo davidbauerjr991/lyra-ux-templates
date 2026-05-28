@@ -19,13 +19,7 @@ const navItems: NavItem[] = [
   {
     icon: <PencilRuler className="h-4 w-4" strokeWidth={1.5} />,
     label: "Designer",
-    expandable: true,
-    defaultOpen: true,
-    children: [
-      { label: "Desktop Library", active: true },
-      { label: "Templates" },
-      { label: "Components" },
-    ],
+    active: true,
   },
   { icon: <FileText className="h-4 w-4" strokeWidth={1.5} />, label: "Examples" },
   { icon: <FileText className="h-4 w-4" strokeWidth={1.5} />, label: "Product Mockups" },

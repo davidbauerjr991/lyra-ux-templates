@@ -5,7 +5,9 @@ import {
   AppHeader,
   AppName,
   ActionIconButton,
-  ActionAvatarButton,
+  ProfileMenu,
+  defaultProfileMenuGroups,
+  DashboardIcon,
   AppMenu,
   CXoneLogo,
   type AppMenuGroup,
@@ -86,13 +88,16 @@ export function Header() {
       }
       actions={
         <>
-          <ActionIconButton title="Help">
-            <CircleHelp className="h-[18px] w-[18px]" strokeWidth={1.5} />
+          <ActionIconButton size="xl" title="Help">
+            <CircleHelp className="h-5 w-5" strokeWidth={1.5} />
           </ActionIconButton>
-          <ActionIconButton title="Notifications" badge={4}>
-            <Bell className="h-[18px] w-[18px]" strokeWidth={1.5} />
+          <ActionIconButton size="xl" title="Dashboards">
+            <DashboardIcon className="text-lyra-fg-default" />
           </ActionIconButton>
-          <ActionAvatarButton initials="JS" avatarColor="#5d6a79" className="ml-1" />
+          <ActionIconButton size="xl" title="Notifications">
+            <Bell className="h-5 w-5" strokeWidth={1.5} />
+          </ActionIconButton>
+          <ProfileMenu initials="JS" avatarColor="#5d6a79" groups={defaultProfileMenuGroups} className="ml-1" />
         </>
       }
     />
