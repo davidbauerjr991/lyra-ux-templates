@@ -4,7 +4,7 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx,js,jsx}",
-    "./node_modules/@nicecxone/lyra-ui/dist/**/*.js",
+    "../lyra-ui/src/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {
