@@ -97,7 +97,7 @@ export function Header() {
           <ActionIconButton size="xl" title="Notifications">
             <Bell className="h-5 w-5" strokeWidth={1.5} />
           </ActionIconButton>
-          <ProfileMenu initials="JS" avatarColor="#5d6a79" groups={defaultProfileMenuGroups} className="ml-1" />
+          <ProfileMenu initials="JS" avatarColor="#5d6a79" groups={defaultProfileMenuGroups} showThemeToggle className="ml-1" />
         </>
       }
     />

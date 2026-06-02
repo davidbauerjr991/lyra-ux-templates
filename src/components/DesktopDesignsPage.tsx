@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   RefreshCw,
   Pencil,
@@ -6,10 +6,7 @@ import {
   Trash2,
   CircleCheck,
   MoreVertical,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
+  Plus,
   Minus,
 } from "lucide-react";
 
@@ -17,10 +14,11 @@ import {
   Button,
   AiIcon,
   PageHeader,
+  Panel,
+  TreeMenu,
   Checkbox,
   TabList,
   Tab,
-  SearchInput,
   Table,
   TableHeader,
   TableBody,
@@ -28,9 +26,24 @@ import {
   TableHead,
   TableCell,
   SortableTableHead,
+  TableToolbar,
+  TableFooter,
+  ColumnToggle,
   useColumnReorder,
 } from "@nicecxone/lyra-ui";
-import type { SortDirection } from "@nicecxone/lyra-ui";
+import type { SortDirection, ColumnToggleItem, TreeMenuItem } from "@nicecxone/lyra-ui";
+
+/* ── Navigation items ── */
+const panelItems: TreeMenuItem[] = [
+  { label: "Desktop Library", active: true },
+  { label: "Forms" },
+  { label: "Scripter" },
+  { label: "Call Details" },
+  { label: "Functions" },
+  { label: "Themes" },
+  { label: "Images" },
+  { label: "AI Tasks" },
+];
 
 /* ── Mock data ── */
 interface DesktopRecord {
@@ -64,27 +77,91 @@ const records: DesktopRecord[] = [
   { id: 16, name: "Agent Desktop #16", published: true, customerCard: "—", description: "Utilities", createdBy: "Jim Smith", createdDate: "02/23/2025 02:32...", modifiedDate: "02/23/2025 02:32...", version: 27 },
 ];
 
-interface DesktopDesignsPageProps {
-  panelOpen?: boolean;
-  panelPinned?: boolean;
-  onPanelToggle?: () => void;
-  onPanelHoverStart?: () => void;
-  onPanelHoverEnd?: () => void;
+/* ── Cookie helpers ── */
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+function setCookie(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax`;
+}
+function readBoolCookie(name: string, fallback: boolean): boolean {
+  const val = getCookie(name);
+  if (val === "true") return true;
+  if (val === "false") return false;
+  return fallback;
 }
 
-export function DesktopDesignsPage({
-  panelOpen,
-  panelPinned = true,
-  onPanelToggle,
-  onPanelHoverStart,
-  onPanelHoverEnd,
-}: DesktopDesignsPageProps) {
-  const [activeTab, setActiveTab] = useState<"library" | "templates">(
-    "library"
-  );
+export function DesktopDesignsPage({ showChip = false }: { showChip?: boolean }) {
+
+  /* ── Left side panel (Designer nav) ── */
+  const [leftPanelPinned, setLeftPanelPinned] = useState(() => readBoolCookie("lyra_panel_pinned", false));
+  const [leftPanelOpen, setLeftPanelOpen] = useState(() => readBoolCookie("lyra_panel_pinned", false));
+  const leftHoverTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleLeftToggle = useCallback(() => {
+    if (leftPanelPinned) setLeftPanelOpen((v) => !v);
+  }, [leftPanelPinned]);
+
+  const handleLeftHoverStart = useCallback(() => {
+    if (!leftPanelPinned) { clearTimeout(leftHoverTimeout.current); setLeftPanelOpen(true); }
+  }, [leftPanelPinned]);
+
+  const handleLeftHoverEnd = useCallback(() => {
+    if (!leftPanelPinned) { leftHoverTimeout.current = setTimeout(() => setLeftPanelOpen(false), 300); }
+  }, [leftPanelPinned]);
+
+  const handleLeftPinToggle = useCallback(() => {
+    setLeftPanelPinned((prev) => {
+      const next = !prev;
+      setCookie("lyra_panel_pinned", String(next));
+      setLeftPanelOpen(next);
+      return next;
+    });
+  }, []);
+
+  /* ── Right side panel (PageHeader toggle) ── */
+  const [rightSidePanelOpen, setRightSidePanelOpen] = useState(false);
+  const [rightSidePanelPinned, setRightSidePanelPinned] = useState(false);
+  const rightHoverTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  /* ── Viewport pin guard ── */
+  const [canPin, setCanPin] = useState(() => window.innerWidth >= 1024);
+  useEffect(() => {
+    const check = () => {
+      const wide = window.innerWidth >= 1024;
+      setCanPin(wide);
+      if (!wide) {
+        setLeftPanelPinned(false);
+        setRightSidePanelPinned(false);
+      }
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const handleRightHoverStart = useCallback(() => {
+    if (!rightSidePanelPinned) { clearTimeout(rightHoverTimeout.current); setRightSidePanelOpen(true); }
+  }, [rightSidePanelPinned]);
+
+  const handleRightHoverEnd = useCallback(() => {
+    if (!rightSidePanelPinned) { rightHoverTimeout.current = setTimeout(() => setRightSidePanelOpen(false), 300); }
+  }, [rightSidePanelPinned]);
+
+  const handleRightPinToggle = useCallback(() => {
+    if (!canPin) return;
+    setRightSidePanelPinned((prev) => { const next = !prev; setRightSidePanelOpen(next); return next; });
+  }, [canPin]);
+
+  /* ── Interior panel (Toolbar toggle) ── */
+  const [interiorPanelOpen, setInteriorPanelOpen] = useState(false);
+
+  /* ── Table state ── */
+  const [activeTab, setActiveTab] = useState<"library" | "templates">("library");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
   type ColKey = "name" | "published" | "customerCard" | "description" | "createdBy" | "createdDate" | "modifiedDate" | "version";
@@ -92,10 +169,6 @@ export function DesktopDesignsPage({
 
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>(null);
-
-  const { columnOrder, dragOverKey, dragHandlers } = useColumnReorder<ColKey>([
-    "name", "published", "customerCard", "description", "createdBy", "createdDate", "modifiedDate", "version",
-  ]);
 
   const columnConfig: Record<ColKey, { label: string; flex: string; sortable: boolean }> = {
     name:         { label: "Name",          flex: "flex-[2] min-w-[140px]",  sortable: true },
@@ -108,25 +181,28 @@ export function DesktopDesignsPage({
     version:      { label: "Version",       flex: "flex-1 min-w-[60px]",     sortable: true },
   };
 
+  const allColumnDefs: ColumnToggleItem[] = (Object.keys(columnConfig) as ColKey[]).map((key) => ({
+    key, label: columnConfig[key].label,
+  }));
+
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(Object.keys(columnConfig) as ColKey[]));
+
+  const { columnOrder: allColumnOrder, dragOverKey, dragHandlers } = useColumnReorder<ColKey>(Object.keys(columnConfig) as ColKey[]);
+  const columnOrder = allColumnOrder.filter((k) => visibleCols.has(k));
+
   function handleSort(key: SortKey) {
     if (sortKey === key) {
       const next: SortDirection = sortDir === null ? "asc" : sortDir === "asc" ? "desc" : null;
       setSortDir(next);
       if (next === null) setSortKey(null);
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
+    } else { setSortKey(key); setSortDir("asc"); }
   }
 
-  function dirFor(key: SortKey): SortDirection {
-    return sortKey === key ? sortDir : null;
-  }
+  function dirFor(key: SortKey): SortDirection { return sortKey === key ? sortDir : null; }
 
-  const filteredRecords = records.filter(
-    (r) =>
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredRecords = records.filter((r) =>
+    r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    r.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const sortedRecords = [...filteredRecords].sort((a, b) => {
@@ -145,265 +221,228 @@ export function DesktopDesignsPage({
   const displayStart = sortedRecords.length > 0 ? startIndex + 1 : 0;
   const displayEnd = Math.min(startIndex + rowsPerPage, sortedRecords.length);
 
-  const allSelected =
-    paginatedRecords.length > 0 &&
-    paginatedRecords.every((r) => selectedIds.has(r.id));
-  const someSelected =
-    !allSelected && paginatedRecords.some((r) => selectedIds.has(r.id));
+  const allSelected = paginatedRecords.length > 0 && paginatedRecords.every((r) => selectedIds.has(r.id));
+  const someSelected = !allSelected && paginatedRecords.some((r) => selectedIds.has(r.id));
 
   function toggleAll(checked: boolean) {
-    if (checked) {
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        paginatedRecords.forEach((r) => next.add(r.id));
-        return next;
-      });
-    } else {
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        paginatedRecords.forEach((r) => next.delete(r.id));
-        return next;
-      });
-    }
+    if (checked) setSelectedIds((prev) => { const next = new Set(prev); paginatedRecords.forEach((r) => next.add(r.id)); return next; });
+    else setSelectedIds((prev) => { const next = new Set(prev); paginatedRecords.forEach((r) => next.delete(r.id)); return next; });
   }
 
   function toggleRow(id: number) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   }
 
   return (
-    <main className="flex flex-1 flex-col overflow-hidden bg-lyra-bg-surface-base">
-      {/* ════ Lyra Component Header ════ */}
-      <PageHeader
-        title="Desktop Library"
-        showPanelToggle
-        panelPinned={panelPinned}
-        onPanelToggle={onPanelToggle}
-        onPanelHoverStart={onPanelHoverStart}
-        onPanelHoverEnd={onPanelHoverEnd}
-        actions={
-          <>
-            <Button variant="outline" size="sm">Secondary</Button>
-            <Button size="sm">Primary</Button>
-            <div className="mx-1 h-6 w-px bg-lyra-border-subtle" />
-            <Button variant="outline" size="sm">
-              <AiIcon className="h-4 w-4" />
-              Ask AI
-            </Button>
-          </>
-        }
-      />
+    <main className="flex flex-1 overflow-hidden bg-lyra-bg-surface-base relative">
 
-      {/* ════ Tabs ════ */}
-      <TabList className="px-6">
-        <Tab
-          active={activeTab === "library"}
-          onClick={() => setActiveTab("library")}
-        >
-          Custom Desktops
-        </Tab>
-        <Tab
-          active={activeTab === "templates"}
-          onClick={() => setActiveTab("templates")}
-        >
-          Templates
-        </Tab>
-      </TabList>
+      {/* ════ Left side panel (Designer nav) ════ */}
+      <Panel
+        variant="side"
+        side="left"
+        open={leftPanelOpen}
+        pinned={leftPanelPinned}
+        headerTitle="Designer"
+        onPinToggle={canPin ? handleLeftPinToggle : undefined}
+        onMouseEnter={!leftPanelPinned ? handleLeftHoverStart : undefined}
+        onMouseLeave={!leftPanelPinned ? handleLeftHoverEnd : undefined}
+      >
+        <TreeMenu className="px-2" items={panelItems} />
+      </Panel>
 
-      {/* ════ Toolbar: Search + Record Count + Actions ════ */}
-      <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-4">
-          <SearchInput
-            placeholder="Quick Search"
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-            className="w-[260px]"
-          />
-          <span className="lyra-body-md text-lyra-fg-secondary">
-            {sortedRecords.length} Records
-          </span>
-        </div>
+      {/* ════ Main content column ════ */}
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
-        <div className="flex items-center gap-1">
-          <Button variant="icon" size="icon" title="Refresh">
-            <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
-          </Button>
-          <Button variant="icon" size="icon" title="Edit">
-            <Pencil className="h-4 w-4" strokeWidth={1.5} />
-          </Button>
-          <Button variant="icon" size="icon" title="Copy">
-            <Copy className="h-4 w-4" strokeWidth={1.5} />
-          </Button>
-          <Button variant="icon" size="icon" title="Delete">
-            <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-          </Button>
-        </div>
-      </div>
+        {/* ════ Page Header ════ */}
+        <PageHeader
+          title="Desktop Library"
+          panelToggle="left"
+          chip={showChip ? "Active" : undefined}
+          panelPinned={leftPanelPinned}
+          onPanelToggle={handleLeftToggle}
+          onPanelHoverStart={!leftPanelPinned ? handleLeftHoverStart : undefined}
+          onPanelHoverEnd={!leftPanelPinned ? handleLeftHoverEnd : undefined}
+          onInnerPanelHoverStart={!rightSidePanelPinned ? handleRightHoverStart : undefined}
+          onInnerPanelHoverEnd={!rightSidePanelPinned ? handleRightHoverEnd : undefined}
+          actions={
+            <>
+              <Button variant="outline">Secondary</Button>
+              <Button>
+                <Plus className="h-4 w-4 mr-1" strokeWidth={1.5} />
+                New Desktop
+              </Button>
+              <div className="mx-1 h-6 w-px bg-lyra-border-subtle" />
+              <Button variant="outline">
+                <AiIcon className="h-4 w-4" />
+                Ask AI
+              </Button>
+            </>
+          }
+        />
 
-      {/* ════ Data Table ════ */}
-      <div className="flex-1 overflow-hidden px-6">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[40px] shrink-0">
-                  <Checkbox
-                    checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                    onCheckedChange={(checked) => toggleAll(!!checked)}
-                  />
-                </TableHead>
-                {columnOrder.map((key) => {
-                  const col = columnConfig[key];
-                  if (col.sortable) {
-                    return (
-                      <SortableTableHead
-                        key={key}
-                        className={col.flex}
-                        sortDirection={dirFor(key as SortKey)}
-                        onSort={() => handleSort(key as SortKey)}
-                        columnKey={key}
-                        dragHandlers={dragHandlers}
-                        isDragOver={dragOverKey === key}
-                      >
-                        {col.label}
-                      </SortableTableHead>
-                    );
-                  }
-                  return (
-                    <TableHead
-                      key={key}
-                      className={col.flex}
-                      draggable
-                      onDragStart={(e) => dragHandlers.onDragStart(e, key)}
-                      onDragOver={(e) => dragHandlers.onDragOver(e, key)}
-                      onDrop={(e) => dragHandlers.onDrop(e, key)}
-                      onDragEnd={dragHandlers.onDragEnd}
-                      onDragLeave={dragHandlers.onDragLeave}
-                      style={dragOverKey === key ? { backgroundColor: "var(--lyra-bg-active-moderate)" } : undefined}
-                    >
-                      {col.label}
-                    </TableHead>
-                  );
-                })}
-                <TableHead className="w-[48px] shrink-0"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedRecords.map((record) => (
-                <TableRow
-                  key={record.id}
-                  data-state={selectedIds.has(record.id) ? "selected" : undefined}
-                >
-                  <TableCell className="w-[40px] shrink-0">
-                    <Checkbox
-                      checked={selectedIds.has(record.id)}
-                      onCheckedChange={() => toggleRow(record.id)}
-                    />
-                  </TableCell>
-                  {columnOrder.map((key) => {
-                    const col = columnConfig[key];
-                    if (key === "published") {
-                      return (
-                        <TableCell key={key} className={col.flex}>
-                          {record.published ? (
-                            <CircleCheck className="h-5 w-5 text-lyra-status-success-strong" strokeWidth={1.5} />
-                          ) : (
-                            <Minus className="h-5 w-5 text-lyra-fg-disabled" strokeWidth={1.5} />
-                          )}
-                        </TableCell>
-                      );
-                    }
-                    return (
-                      <TableCell
-                        key={key}
-                        className={`${col.flex}${key === "name" ? " text-lyra-fg-link cursor-pointer hover:underline" : ""}`}
-                      >
-                        {String(record[key as keyof DesktopRecord])}
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell className="w-[48px] shrink-0">
-                    <button className="flex h-7 w-7 items-center justify-center rounded-lyra-sm text-lyra-fg-secondary hover:bg-lyra-bg-surface-shell transition-colors">
-                      <MoreVertical className="h-4 w-4" strokeWidth={1.5} />
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-      </div>
+        {/* ════ Tabs ════ */}
+        <TabList className="px-6">
+          <Tab active={activeTab === "library"} onClick={() => setActiveTab("library")}>Custom Desktops</Tab>
+          <Tab active={activeTab === "templates"} onClick={() => setActiveTab("templates")}>Templates</Tab>
+        </TabList>
 
-      {/* ════ Pagination ════ */}
-      <div className="flex items-center justify-between border-t border-lyra-border-subtle px-6 py-2.5">
-        <div className="flex items-center gap-2 lyra-body-sm text-lyra-fg-secondary">
-          <span>
-            Displaying {displayStart}-{displayEnd} of {sortedRecords.length}
-          </span>
-          <span className="text-lyra-border-default">|</span>
-          <span>Rows per page:</span>
-          <select
-            value={rowsPerPage}
-            onChange={(e) => {
-              setRowsPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="appearance-none rounded-lyra-sm border border-lyra-border-default bg-lyra-bg-control px-2 py-0.5 pr-6 lyra-body-sm text-lyra-fg-default hover:bg-lyra-bg-surface-shell transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-lyra-border-active bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22rgba(0%2C0%2C0%2C0.56)%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_4px_center] bg-no-repeat"
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </div>
+        {/* ════ Interior panels row ════ */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        <div className="flex items-center gap-1 lyra-body-sm text-lyra-fg-secondary">
-          <span>Page</span>
-          <button
-            onClick={() => setCurrentPage(1)}
-            disabled={safePage <= 1}
-            className="flex h-6 w-6 items-center justify-center rounded-lyra-sm hover:bg-lyra-bg-surface-shell transition-colors disabled:text-lyra-fg-disabled disabled:hover:bg-transparent text-lyra-fg-secondary"
-          >
-            <ChevronsLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={safePage <= 1}
-            className="flex h-6 w-6 items-center justify-center rounded-lyra-sm hover:bg-lyra-bg-surface-shell transition-colors disabled:text-lyra-fg-disabled disabled:hover:bg-transparent text-lyra-fg-secondary"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
-          <input
-            type="text"
-            value={safePage}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val) && val >= 1 && val <= totalPages) {
-                setCurrentPage(val);
+          {/* ════ Main table column ════ */}
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+
+            {/* ════ Toolbar ════ */}
+            <TableToolbar
+              className="px-6"
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Quick Search"
+              actionDefs={[
+                { key: "refresh", label: "Refresh", icon: <RefreshCw className="h-4 w-4" strokeWidth={1.5} /> },
+                { key: "edit", label: "Edit", icon: <Pencil className="h-4 w-4" strokeWidth={1.5} />, disabled: selectedIds.size === 0 },
+                { key: "copy", label: "Copy", icon: <Copy className="h-4 w-4" strokeWidth={1.5} />, disabled: selectedIds.size === 0 },
+                { key: "delete", label: "Delete", icon: <Trash2 className="h-4 w-4" strokeWidth={1.5} />, disabled: selectedIds.size === 0 },
+              ]}
+              actions={
+                <ColumnToggle
+                  columns={allColumnDefs}
+                  visibleColumns={visibleCols}
+                  onVisibilityChange={setVisibleCols}
+                />
               }
-            }}
-            className="h-6 w-8 rounded-lyra-sm border border-lyra-border-default bg-lyra-bg-field text-center lyra-body-sm text-lyra-fg-default focus:outline-none focus:ring-1 focus:ring-lyra-border-active"
-          />
-          <span>of {totalPages}</span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={safePage >= totalPages}
-            className="flex h-6 w-6 items-center justify-center rounded-lyra-sm hover:bg-lyra-bg-surface-shell transition-colors disabled:text-lyra-fg-disabled disabled:hover:bg-transparent text-lyra-fg-secondary"
+              toolbarPanelToggle="right"
+              onRightPanelToggle={() => setInteriorPanelOpen((v) => !v)}
+            />
+
+            {/* ════ Data Table ════ */}
+            <div className="flex-1 overflow-hidden px-6">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[40px] shrink-0">
+                      <Checkbox
+                        checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                        onCheckedChange={(checked) => toggleAll(!!checked)}
+                      />
+                    </TableHead>
+                    {columnOrder.map((key) => {
+                      const col = columnConfig[key];
+                      if (col.sortable) {
+                        return (
+                          <SortableTableHead
+                            key={key}
+                            className={col.flex}
+                            sortDirection={dirFor(key as SortKey)}
+                            onSort={() => handleSort(key as SortKey)}
+                            columnKey={key}
+                            dragHandlers={dragHandlers}
+                            isDragOver={dragOverKey === key}
+                          >
+                            {col.label}
+                          </SortableTableHead>
+                        );
+                      }
+                      return (
+                        <TableHead
+                          key={key}
+                          className={col.flex}
+                          draggable
+                          onDragStart={(e) => dragHandlers.onDragStart(e, key)}
+                          onDragOver={(e) => dragHandlers.onDragOver(e, key)}
+                          onDrop={(e) => dragHandlers.onDrop(e, key)}
+                          onDragEnd={dragHandlers.onDragEnd}
+                          onDragLeave={dragHandlers.onDragLeave}
+                          style={dragOverKey === key ? { backgroundColor: "var(--lyra-bg-active-moderate)" } : undefined}
+                        >
+                          {col.label}
+                        </TableHead>
+                      );
+                    })}
+                    <TableHead className="w-[48px] shrink-0 sticky right-0 bg-lyra-bg-surface-base" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedRecords.map((record) => (
+                    <TableRow key={record.id} data-state={selectedIds.has(record.id) ? "selected" : undefined}>
+                      <TableCell className="w-[40px] shrink-0">
+                        <Checkbox checked={selectedIds.has(record.id)} onCheckedChange={() => toggleRow(record.id)} />
+                      </TableCell>
+                      {columnOrder.map((key) => {
+                        const col = columnConfig[key];
+                        if (key === "published") {
+                          return (
+                            <TableCell key={key} className={col.flex}>
+                              {record.published
+                                ? <CircleCheck className="h-5 w-5 text-lyra-status-success-strong" strokeWidth={1.5} />
+                                : <Minus className="h-5 w-5 text-lyra-fg-disabled" strokeWidth={1.5} />}
+                            </TableCell>
+                          );
+                        }
+                        return (
+                          <TableCell key={key} className={`${col.flex}${key === "name" ? " text-lyra-fg-link cursor-pointer hover:underline" : ""}`}>
+                            {String(record[key as keyof DesktopRecord])}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="w-[48px] shrink-0 sticky right-0 bg-lyra-bg-surface-base">
+                        <button className="flex h-7 w-7 items-center justify-center rounded-lyra-sm text-lyra-fg-secondary hover:bg-lyra-bg-surface-shell transition-colors">
+                          <MoreVertical className="h-4 w-4" strokeWidth={1.5} />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* ════ Footer ════ */}
+            <TableFooter
+              className="px-6 shrink-0"
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}
+              totalRecords={sortedRecords.length}
+              displayStart={displayStart}
+              displayEnd={displayEnd}
+            />
+
+          </div>{/* end main table column */}
+
+          {/* Interior right panel */}
+          <Panel
+            variant="interior"
+            side="right"
+            open={interiorPanelOpen}
+            headerTitle="Details"
+            onClose={() => setInteriorPanelOpen(false)}
           >
-            <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
-          <button
-            onClick={() => setCurrentPage(totalPages)}
-            disabled={safePage >= totalPages}
-            className="flex h-6 w-6 items-center justify-center rounded-lyra-sm hover:bg-lyra-bg-surface-shell transition-colors disabled:text-lyra-fg-disabled disabled:hover:bg-transparent text-lyra-fg-secondary"
-          >
-            <ChevronsRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
+            <div className="p-4">
+              <p className="lyra-body-md text-lyra-fg-secondary">Panel content goes here.</p>
+            </div>
+          </Panel>
+
+        </div>{/* end interior panels row */}
+      </div>{/* end main content column */}
+
+      {/* ════ Right side panel ════ */}
+      <Panel
+        variant="side"
+        side="right"
+        open={rightSidePanelOpen}
+        pinned={rightSidePanelPinned}
+        headerTitle="Designer"
+        onPinToggle={canPin ? handleRightPinToggle : undefined}
+        onMouseEnter={!rightSidePanelPinned ? handleRightHoverStart : undefined}
+        onMouseLeave={!rightSidePanelPinned ? handleRightHoverEnd : undefined}
+      >
+        <div className="p-4">
+          <p className="lyra-body-md text-lyra-fg-secondary">Side panel content.</p>
         </div>
-      </div>
+      </Panel>
+
     </main>
   );
 }
