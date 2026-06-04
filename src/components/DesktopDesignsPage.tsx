@@ -353,7 +353,7 @@ export function DesktopDesignsPage({ showChip = false }: { showChip?: boolean })
                           onDrop={(e) => dragHandlers.onDrop(e, key)}
                           onDragEnd={dragHandlers.onDragEnd}
                           onDragLeave={dragHandlers.onDragLeave}
-                          style={dragOverKey === key ? { backgroundColor: "var(--lyra-bg-active-moderate)" } : undefined}
+                          style={dragOverKey === key ? { backgroundColor: "var(--lyra-color-bg-active-moderate)" } : undefined}
                         >
                           {col.label}
                         </TableHead>

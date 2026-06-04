@@ -1,3 +1,5 @@
+@import '../../lyra-ui/src/styles/lyra-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,8 +13,8 @@
 
 body {
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  color: var(--lyra-fg-default);
-  background: var(--lyra-bg-surface-shell);
+  color: var(--lyra-color-fg-default);
+  background: var(--lyra-color-bg-surface-shell);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
