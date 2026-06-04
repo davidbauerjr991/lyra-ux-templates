@@ -1,8 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { DesktopDesignsPage } from "@/components/DesktopDesignsPage";
-import { ContentArea, Container } from "@nicecxone/lyra-ui";
+import {
+  ContentArea,
+  Container,
+  AiPanel,
+  ConversationMessage,
+  AIProcess,
+  type AIProcessStep,
+  type AiPanelSuggestion,
+} from "@nicecxone/lyra-ui";
 
 /* ── Session cookie helpers ── */
 function getCookie(name: string): string | null {
@@ -19,8 +27,101 @@ function readBoolCookie(name: string, fallback: boolean): boolean {
   return fallback;
 }
 
+/* ── Simulated AI responses ── */
+interface Message {
+  id: string;
+  role: "user" | "ai";
+  text: string;
+  steps?: AIProcessStep[];
+}
+
+const RESPONSES: Record<string, { steps: AIProcessStep[]; text: string }> = {
+  default: {
+    steps: [
+      { id: "1", label: "Searching documentation",       status: "done" },
+      { id: "2", label: "Reviewing configuration",       status: "done" },
+      { id: "3", label: "Composing response",            status: "done" },
+    ],
+    text: "I've reviewed the available documentation and configuration options. Here's what I found based on your question.",
+  },
+  "Create an AI Agent": {
+    steps: [
+      { id: "1", label: "Checking agent templates",      status: "done" },
+      { id: "2", label: "Reviewing permissions",         status: "done" },
+      { id: "3", label: "Generating setup guide",        status: "done" },
+    ],
+    text: "To create an AI Agent, navigate to Admin → AI Agents → New Agent. Choose a model (GPT-4o, Claude 3.5, or Gemini 1.5), configure skills and routing rules, then save and activate. The agent will be available for assignment immediately.",
+  },
+  "See what has changed since yesterday": {
+    steps: [
+      { id: "1", label: "Pulling change log",            status: "done" },
+      { id: "2", label: "Comparing configurations",      status: "done" },
+      { id: "3", label: "Summarising differences",       status: "done" },
+    ],
+    text: "Since yesterday there were 3 configuration changes: (1) Billing queue SLA threshold updated from 90s to 60s, (2) AI Agent #4 routing rules modified, (3) New desktop template 'Healthcare v2' published by Jim Smith.",
+  },
+  "How can I manually configure AI Agents?": {
+    steps: [
+      { id: "1", label: "Locating configuration docs",   status: "done" },
+      { id: "2", label: "Identifying key settings",      status: "done" },
+      { id: "3", label: "Building step-by-step guide",   status: "done" },
+    ],
+    text: "Manual configuration is available under Admin → AI Agents → select agent → Configure. Key settings include: Model selection, Confidence threshold, Fallback behaviour, Skill assignments, and Escalation rules. Changes take effect within 60 seconds.",
+  },
+};
+
+function getResponse(text: string) {
+  return RESPONSES[text] ?? RESPONSES.default;
+}
+
+/* ── Animated slide-in panel wrapper ── */
+function SlidingPanel({ open, panelWidth, isDragging, children }: { open: boolean; panelWidth: number; isDragging: boolean; children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    clearTimeout(timer.current);
+    if (open) {
+      setMounted(true);
+      timer.current = setTimeout(() => setVisible(true), 10);
+    } else {
+      setVisible(false);
+      timer.current = setTimeout(() => setMounted(false), 300);
+    }
+    return () => clearTimeout(timer.current);
+  }, [open]);
+
+  if (!mounted) return null;
+
+  return (
+    <div
+      style={{
+        width: visible ? panelWidth : 0,
+        overflow: "hidden",
+        flexShrink: 0,
+        transition: isDragging ? "none" : "width 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
+    >
+      <div className="flex h-full pr-3 pb-3" style={{ width: panelWidth }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ── App ── */
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => readBoolCookie("lyra_sidebar_open", false));
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const PADDING = 12; // pr-3 pb-3
+  const DEFAULT_PANEL_WIDTH = 420;
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH + PADDING);
+  const [isPanelDragging, setIsPanelDragging] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleSidebarToggle = useCallback(() => {
     setSidebarOpen((prev) => {
@@ -30,6 +131,84 @@ function App() {
     });
   }, []);
 
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, thinking]);
+
+  const sendMessage = useCallback((text: string) => {
+    if (!text.trim()) return;
+    const userMsg: Message = { id: Date.now().toString(), role: "user", text };
+    setMessages((prev) => [...prev, userMsg]);
+    setInputValue("");
+    setThinking(true);
+
+    // Simulate AI thinking then respond
+    setTimeout(() => {
+      const { steps, text: responseText } = getResponse(text);
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "ai",
+        text: responseText,
+        steps,
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+      setThinking(false);
+    }, 1800);
+  }, []);
+
+  const handleSuggestion = useCallback((s: AiPanelSuggestion) => {
+    setAiPanelOpen(true);
+    sendMessage(s.label);
+  }, [sendMessage]);
+
+  const handleNewConversation = useCallback(() => {
+    setMessages([]);
+    setInputValue("");
+    setThinking(false);
+  }, []);
+
+  const SUGGESTIONS: AiPanelSuggestion[] = [
+    { id: "1", label: "Create an AI Agent" },
+    { id: "2", label: "See what has changed since yesterday" },
+    { id: "3", label: "How can I manually configure AI Agents?" },
+  ];
+
+  const conversationContent = messages.length > 0 || thinking ? (
+    <div className="flex flex-col gap-4">
+      {messages.map((msg) =>
+        msg.role === "user" ? (
+          <ConversationMessage key={msg.id} variant="user">
+            {msg.text}
+          </ConversationMessage>
+        ) : (
+          <ConversationMessage
+            key={msg.id}
+            variant="ai"
+            process={msg.steps}
+            processExpanded={false}
+          >
+            {msg.text}
+          </ConversationMessage>
+        )
+      )}
+      {thinking && (
+        <ConversationMessage variant="ai">
+          <AIProcess
+            label="Thinking…"
+            defaultExpanded
+            steps={[
+              { id: "1", label: "Searching documentation",  status: "active" },
+              { id: "2", label: "Reviewing configuration",  status: "pending" },
+              { id: "3", label: "Composing response",       status: "pending" },
+            ]}
+          />
+        </ConversationMessage>
+      )}
+      <div ref={messagesEndRef} />
+    </div>
+  ) : undefined;
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <Header />
@@ -37,9 +216,28 @@ function App() {
         <Sidebar open={sidebarOpen} onToggle={handleSidebarToggle} />
         <ContentArea>
           <Container className="relative flex flex-1 overflow-hidden">
-            <DesktopDesignsPage />
+            <DesktopDesignsPage onAiPanelToggle={() => setAiPanelOpen((v) => !v)} />
           </Container>
         </ContentArea>
+        <SlidingPanel open={aiPanelOpen} panelWidth={panelWidth} isDragging={isPanelDragging}>
+          <AiPanel
+            userName="John"
+            className="h-full w-[420px]"
+            onWidthChange={(w) => setPanelWidth(w + PADDING)}
+            onDragStateChange={setIsPanelDragging}
+            suggestions={SUGGESTIONS}
+            onSuggestion={handleSuggestion}
+            onClose={() => setAiPanelOpen(false)}
+            onNewConversation={handleNewConversation}
+            inputProps={{
+              value: inputValue,
+              onChange: setInputValue,
+              onSubmit: sendMessage,
+            }}
+          >
+            {conversationContent}
+          </AiPanel>
+        </SlidingPanel>
       </div>
     </div>
   );

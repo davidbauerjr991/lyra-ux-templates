@@ -92,7 +92,7 @@ function readBoolCookie(name: string, fallback: boolean): boolean {
   return fallback;
 }
 
-export function DesktopDesignsPage({ showChip = false }: { showChip?: boolean }) {
+export function DesktopDesignsPage({ showChip = false, onAiPanelToggle }: { showChip?: boolean; onAiPanelToggle?: () => void }) {
 
   /* ── Left side panel (Designer nav) ── */
   const [leftPanelPinned, setLeftPanelPinned] = useState(() => readBoolCookie("lyra_panel_pinned", false));
@@ -272,7 +272,7 @@ export function DesktopDesignsPage({ showChip = false }: { showChip?: boolean })
                 New Desktop
               </Button>
               <div className="mx-1 h-6 w-px bg-lyra-border-subtle" />
-              <Button variant="outline">
+              <Button variant="outline" onClick={onAiPanelToggle}>
                 <AiIcon className="h-4 w-4" />
                 Ask AI
               </Button>
