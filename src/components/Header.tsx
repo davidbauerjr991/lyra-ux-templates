@@ -13,34 +13,31 @@ import {
   type AppMenuGroup,
 } from "@nicecxone/lyra-ui";
 
-const appMenuGroups: AppMenuGroup[] = [
-  {
-    items: [
-      { label: "Agent" },
-      { label: "Agent Desktop Premium" },
-      { label: "Congingy AI" },
-    ],
-  },
-  {
-    items: [
-      { label: "Workforce Management" },
-      { label: "Quality Management" },
-      { label: "interaction Hub" },
-      { label: "My Zone" },
-    ],
-  },
-  {
-    items: [
-      { label: "Dashboard" },
-      { label: "Analytics" },
-    ],
-  },
-];
+type Page = "agent-workspace" | "agent";
 
-export function Header() {
+interface HeaderProps {
+  onNavigate?: (page: Page) => void;
+}
+
+export function Header({ onNavigate }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const navigate = (page: Page) => {
+    setMenuOpen(false);
+    onNavigate?.(page);
+  };
+
+  const appMenuGroups: AppMenuGroup[] = [
+    {
+      items: [
+        { label: "Agent Next Gen", onClick: () => navigate("agent") },
+        { label: "Agent Workspace Premium", active: true },
+        { label: "Outbound Engagement" },
+      ],
+    },
+  ];
 
   /* Close on outside click */
   useEffect(() => {

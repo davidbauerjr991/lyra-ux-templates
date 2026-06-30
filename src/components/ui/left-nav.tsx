@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -37,6 +37,13 @@ interface LeftNavProps extends React.HTMLAttributes<HTMLElement> {
   onToggle?: () => void;
   /** Show/hide the collapse toggle button */
   collapsible?: boolean;
+  /**
+   * Overlay mode (narrow screens): the aside keeps a fixed 52px footprint;
+   * the expanded panel slides out as an absolutely-positioned overlay.
+   */
+  overlay?: boolean;
+  /** Content pinned to the bottom of the nav rail (e.g. an AddChannel button) */
+  footer?: React.ReactNode;
 }
 
 const LeftNav = React.forwardRef<HTMLElement, LeftNavProps>(
@@ -47,41 +54,99 @@ const LeftNav = React.forwardRef<HTMLElement, LeftNavProps>(
       open = true,
       onToggle,
       collapsible = true,
+      overlay = false,
+      footer,
       ...props
     },
     ref
-  ) => (
-    <aside
-      ref={ref}
-      className={cn(
-        "relative flex flex-shrink-0 flex-col overflow-visible bg-lyra-bg-surface-shell transition-all duration-200",
-        open ? "w-[256px]" : "w-[52px]",
-        className
-      )}
-      {...props}
-    >
-      {/* Toggle button */}
-      {collapsible && (
-        <button
-          onClick={onToggle}
-          className="absolute -right-3 top-[22px] z-10 flex h-5 w-5 items-center justify-center rounded-full border border-lyra-border-default bg-lyra-bg-surface-base text-lyra-fg-secondary shadow-sm hover:bg-lyra-bg-surface-shell transition-colors"
-          title={open ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {open ? (
-            <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-          )}
-        </button>
-      )}
+  ) => {
+    // Hover-open state used in overlay mode
+    const [hoverOpen, setHoverOpen] = useState(false);
+    const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const onHoverStart = useCallback(() => {
+      clearTimeout(hoverTimer.current);
+      setHoverOpen(true);
+    }, []);
+    const onHoverEnd = useCallback(() => {
+      hoverTimer.current = setTimeout(() => setHoverOpen(false), 300);
+    }, []);
 
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-2 py-3">
-        {items.map((item, i) => (
-          <NavItemRow key={i} item={item} collapsed={!open} />
-        ))}
-      </nav>
-    </aside>
-  )
+    const toggleButton = collapsible ? (
+      <button
+        onClick={onToggle}
+        className="absolute -right-3 top-[22px] z-10 flex h-5 w-5 items-center justify-center rounded-full border border-lyra-border-default bg-lyra-bg-surface-base text-lyra-fg-secondary shadow-sm hover:bg-lyra-bg-surface-shell transition-colors"
+        title={open ? "Collapse sidebar" : "Expand sidebar"}
+      >
+        {open ? (
+          <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+        )}
+      </button>
+    ) : null;
+
+    /* ── Overlay mode (narrow screens): hover to open, no toggle button ── */
+    if (overlay) {
+      return (
+        <aside
+          ref={ref}
+          className={cn("relative flex-shrink-0 overflow-visible bg-lyra-bg-surface-shell w-[52px]", className)}
+          onMouseEnter={onHoverStart}
+          onMouseLeave={onHoverEnd}
+          {...props}
+        >
+          {/* Sliding panel: 52px footprint when closed, 256px overlay when open */}
+          <div
+            className="absolute left-0 top-0 bottom-0 flex flex-col bg-lyra-bg-surface-shell overflow-hidden"
+            style={{
+              width: hoverOpen ? 256 : 52,
+              zIndex: hoverOpen ? 20 : 10,
+              transition: "width 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+              boxShadow: hoverOpen ? "4px 0 12px rgba(0,0,0,0.1)" : "none",
+            }}
+          >
+            <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-2 py-3">
+              {items.map((item, i) => (
+                <NavItemRow key={i} item={item} collapsed={!hoverOpen} />
+              ))}
+            </nav>
+            {footer && (
+              <div className="flex-shrink-0 flex items-center justify-center px-2 pb-3">
+                {React.isValidElement(footer)
+                  ? React.cloneElement(footer as React.ReactElement<{ expanded?: boolean }>, { expanded: hoverOpen })
+                  : footer}
+              </div>
+            )}
+          </div>
+        </aside>
+      );
+    }
+
+    /* ── Default (inline) mode ── */
+    return (
+      <aside
+        ref={ref}
+        className={cn(
+          "relative flex flex-shrink-0 flex-col overflow-visible bg-lyra-bg-surface-shell transition-all duration-200",
+          open ? "w-[256px]" : "w-[52px]",
+          className
+        )}
+        {...props}
+      >
+        {toggleButton}
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-2 py-3">
+          {items.map((item, i) => (
+            <NavItemRow key={i} item={item} collapsed={!open} />
+          ))}
+        </nav>
+        {footer && (
+          <div className="flex-shrink-0 flex items-center justify-center px-2 pb-3">
+            {footer}
+          </div>
+        )}
+      </aside>
+    );
+  }
 );
 LeftNav.displayName = "LeftNav";
 

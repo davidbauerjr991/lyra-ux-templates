@@ -56,6 +56,7 @@ export default {
         "lyra-status-success-subtle":   "var(--lyra-color-status-success-subtle)",
         "lyra-status-info-strong":      "var(--lyra-color-status-info-strong)",
         "lyra-status-critical-strong":  "var(--lyra-color-status-critical-strong)",
+        "lyra-status-critical-medium":  "var(--lyra-color-status-critical-medium)",
         "lyra-status-critical-subtle":  "var(--lyra-color-status-critical-subtle)",
         "lyra-status-warning-strong":   "var(--lyra-color-status-warning-strong)",
         "lyra-status-warning-subtle":   "var(--lyra-color-status-warning-subtle)",
@@ -64,14 +65,23 @@ export default {
         "lyra-state-border-hover-neutral": "var(--lyra-color-state-border-hover-neutral)",
 
         /* ── State ── */
-        "lyra-state-hover":                  "var(--lyra-color-state-bg-hover-opacity)",
-        "lyra-state-pressed":                "var(--lyra-color-state-bg-pressed-opacity)",
-        "lyra-state-hover-primary":          "var(--lyra-color-state-bg-hover-primary)",
-        "lyra-state-pressed-primary":        "var(--lyra-color-state-bg-pressed-primary)",
-        "lyra-state-hover-active-subtle":    "var(--lyra-color-state-bg-hover-active-subtle)",
-        "lyra-state-pressed-active-subtle":  "var(--lyra-color-state-bg-pressed-active-subtle)",
-        "lyra-state-hover-destructive":      "var(--lyra-color-state-bg-hover-destructive)",
-        "lyra-state-pressed-destructive":    "var(--lyra-color-state-bg-pressed-destructive)",
+        "lyra-state-hover":                     "var(--lyra-color-state-bg-hover-opacity)",
+        "lyra-state-pressed":                   "var(--lyra-color-state-bg-pressed-opacity)",
+        "lyra-state-hover-primary":             "var(--lyra-color-state-bg-hover-primary)",
+        "lyra-state-pressed-primary":           "var(--lyra-color-state-bg-pressed-primary)",
+        "lyra-state-hover-active-subtle":       "var(--lyra-color-state-bg-hover-active-subtle)",
+        "lyra-state-pressed-active-subtle":     "var(--lyra-color-state-bg-pressed-active-subtle)",
+        "lyra-state-hover-critical-subtle":     "var(--lyra-color-state-bg-hover-critical-subtle)",
+        "lyra-state-pressed-critical-subtle":   "var(--lyra-color-state-bg-pressed-critical-subtle)",
+        "lyra-state-hover-destructive":         "var(--lyra-color-state-bg-hover-destructive)",
+        "lyra-state-pressed-destructive":       "var(--lyra-color-state-bg-pressed-destructive)",
+
+        /* ── Lyra Avatar ── */
+        "lyra-avatar-default-bg": "var(--lyra-color-avatar-default-bg)",
+
+        /* ── Lyra Accent ── */
+        "lyra-accent-slate-strong": "var(--lyra-color-accent-slate-strong)",
+        "lyra-accent-slate-soft":   "var(--lyra-color-accent-slate-soft)",
 
         "cxone-navy": "#2a2d32",
       },
