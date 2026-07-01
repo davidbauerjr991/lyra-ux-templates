@@ -13,13 +13,14 @@ import {
   type AppMenuGroup,
 } from "@nicecxone/lyra-ui";
 
-type Page = "agent-workspace" | "agent";
+type Page = "agent-workspace" | "agent" | "outbound";
 
 interface HeaderProps {
   onNavigate?: (page: Page) => void;
+  currentPage?: Page;
 }
 
-export function Header({ onNavigate }: HeaderProps) {
+export function Header({ onNavigate, currentPage = "agent-workspace" }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -33,8 +34,8 @@ export function Header({ onNavigate }: HeaderProps) {
     {
       items: [
         { label: "Agent Next Gen", onClick: () => navigate("agent") },
-        { label: "Agent Workspace Premium", active: true },
-        { label: "Outbound Engagement" },
+        { label: "Agent Workspace Premium", active: currentPage === "agent-workspace", onClick: () => navigate("agent-workspace") },
+        { label: "Outbound Engagement", active: currentPage === "outbound", onClick: () => navigate("outbound") },
       ],
     },
   ];
@@ -73,7 +74,7 @@ export function Header({ onNavigate }: HeaderProps) {
           <AppName
             ref={triggerRef}
             icon={<img src={appIcon} alt="Desk" className="h-6 w-6" />}
-            name="Agent Workspace Premium"
+            name={currentPage === "outbound" ? "Outbound Engagement" : "Agent Workspace Premium"}
             onClick={() => setMenuOpen((v) => !v)}
           />
           {menuOpen && (

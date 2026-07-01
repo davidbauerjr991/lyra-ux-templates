@@ -45,7 +45,7 @@ function buildAppMenuGroups(onNavigate?: (page: Page) => void): AppMenuGroup[] {
       items: [
         { label: "Agent Next Gen", active: true },
         { label: "Agent Workspace Premium", onClick: () => onNavigate?.("agent-workspace") },
-        { label: "Outbound Engagement" },
+        { label: "Outbound Engagement", onClick: () => onNavigate?.("outbound") },
       ],
     },
   ];
@@ -109,7 +109,7 @@ function AiSparkleIcon() {
 
 /* ── AgentNextGenPage ── */
 
-type Page = "agent-workspace" | "agent";
+type Page = "agent-workspace" | "agent" | "outbound";
 
 const AI_PANEL_DEFAULT_WIDTH = 360;
 

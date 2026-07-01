@@ -3,17 +3,22 @@ import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { DesktopDesignsPage } from "@/components/DesktopDesignsPage";
 import { AgentNextGenPage } from "@/components/AgentNextGenPage";
+import { OutboundEngagementPage } from "@/components/OutboundEngagementPage";
 
-type Page = "agent-workspace" | "agent";
+type Page = "agent-workspace" | "agent" | "outbound";
 
 /* ── Hash-based routing ── */
 const PAGE_HASH: Record<Page, string> = {
   "agent":           "",
   "agent-workspace": "#/agentworkspacepremium",
+  "outbound":        "#/outboundengagement",
 };
 
 function pageFromHash(): Page {
-  return window.location.hash === "#/agentworkspacepremium" ? "agent-workspace" : "agent";
+  const hash = window.location.hash;
+  if (hash === "#/agentworkspacepremium") return "agent-workspace";
+  if (hash === "#/outboundengagement") return "outbound";
+  return "agent";
 }
 
 function useHashRouter(): [Page, (page: Page) => void] {
@@ -219,12 +224,15 @@ function App() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header onNavigate={setPage} />
+      <Header onNavigate={setPage} currentPage={page} />
       <div className="flex flex-1 overflow-hidden bg-lyra-bg-surface-shell">
         <Sidebar open={sidebarOpen} onToggle={handleSidebarToggle} />
         <ContentArea className="min-w-0">
           <Container className="relative flex flex-1 overflow-hidden">
-            <DesktopDesignsPage onAiPanelToggle={() => setAiPanelOpen((v) => !v)} />
+            {page === "outbound"
+              ? <OutboundEngagementPage onAiPanelToggle={() => setAiPanelOpen((v) => !v)} />
+              : <DesktopDesignsPage onAiPanelToggle={() => setAiPanelOpen((v) => !v)} />
+            }
           </Container>
         </ContentArea>
         <SlidingPanel open={aiPanelOpen}>
