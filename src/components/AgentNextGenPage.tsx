@@ -442,7 +442,7 @@ export function AgentNextGenPage({
   ) : null;
 
   return (
-    <div className="flex flex-col h-screen bg-lyra-bg-surface-shell overflow-hidden">
+    <div className="flex flex-col h-screen bg-lyra-bg-surface-shell overflow-hidden animate-in fade-in-0 duration-500">
 
       {/* ── App Header ── */}
       <AppHeader
