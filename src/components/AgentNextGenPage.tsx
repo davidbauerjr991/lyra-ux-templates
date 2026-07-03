@@ -15,9 +15,9 @@ import {
   Button,
   Input,
   LeftNav,
-  AddChannel,
+  NewOutbound,
   type NavItem,
-  type AddChannelItem,
+  type NewOutboundItem,
   type AgentStatus,
   type AppMenuGroup,
   type AgentNotification,
@@ -51,9 +51,9 @@ function buildAppMenuGroups(onNavigate?: (page: Page) => void): AppMenuGroup[] {
   ];
 }
 
-/* ── Add channel items ── */
+/* ── New outbound items ── */
 
-const ADD_CHANNEL_ITEMS: AddChannelItem[] = [
+const NEW_OUTBOUND_ITEMS: NewOutboundItem[] = [
   { label: "Call",     icon: <Phone          className="h-5 w-5" strokeWidth={1.5} /> },
   { label: "Email",    icon: <Mail           className="h-5 w-5" strokeWidth={1.5} /> },
   { label: "SMS",      icon: <MessageSquare  className="h-5 w-5" strokeWidth={1.5} /> },
@@ -513,7 +513,7 @@ export function AgentNextGenPage({
           open={navOpen}
           onToggle={() => setNavOpen((v) => !v)}
           overlay={isNavNarrow}
-          footer={<AddChannel items={ADD_CHANNEL_ITEMS} expanded={navOpen} />}
+          footer={<NewOutbound items={NEW_OUTBOUND_ITEMS} expanded={navOpen} />}
         />
 
         {/* Content area — flex-1 shrinks to give space to docked panels.
