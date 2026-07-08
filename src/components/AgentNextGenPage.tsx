@@ -57,9 +57,11 @@ function buildAppMenuGroups(onNavigate?: (page: Page) => void): AppMenuGroup[] {
 /* ── Create New → Outbound config ──
    Mirrors lyra-ui's CreateNew "Create New → Outbound" story (see
    lyra-ui/src/components/__stories__/create-new-outbound-mock.tsx) — only
-   "Outbound" is wired up, the rest render as coming-soon placeholders. Teams
-   and skills below are small, app-specific lists kept local, but the agent
-   and customer "database" records themselves come from lyra-ui's shared
+   "Outbound" is wired up, the rest render as coming-soon placeholders. Teams,
+   skills, and assignments below are small, app-specific lists kept local —
+   lyra-ui's reference mock doesn't have an "Assignments" group, so it's
+   added here the same way Teams/Skills already were — but the agent and
+   customer "database" records themselves come from lyra-ui's shared
    fixture files (via the /agents-data and /customers-data aliases in
    vite.config.ts) so this app's Outbound picker can't quietly drift out of
    sync with lyra-ui's own story — same records, mapped into the shape
@@ -101,6 +103,11 @@ const OUTBOUND_SKILLS: NonNullable<CreateNewOutboundConfig["groups"][number]["co
   { id: "s2", name: "Technical Support", initials: "TS", subtitle: "SKL-03", avatarClassName: "bg-lyra-accent-blue-soft text-lyra-accent-blue-strong",   channels: ["voice", "email"] },
 ];
 
+const OUTBOUND_ASSIGNMENTS: NonNullable<CreateNewOutboundConfig["groups"][number]["contacts"]> = [
+  { id: "a1", name: "VIP Escalation Review",  initials: "VE", subtitle: "ASN-021", avatarClassName: "bg-lyra-accent-orange-soft text-lyra-accent-orange-strong", channels: ["voice", "email"] },
+  { id: "a2", name: "Onboarding Follow-up",   initials: "OF", subtitle: "ASN-014", avatarClassName: "bg-lyra-accent-teal-soft text-lyra-accent-teal-strong",     channels: ["voice", "email"] },
+];
+
 const OUTBOUND_CONFIG: CreateNewOutboundConfig = {
   outboundTitle: "New Outbound",
   groups: [
@@ -108,6 +115,7 @@ const OUTBOUND_CONFIG: CreateNewOutboundConfig = {
     { id: "agents", label: "Agents", searchPlaceholder: "Search Agents", contacts: OUTBOUND_AGENTS },
     { id: "teams", label: "Teams", searchPlaceholder: "Search teams", contacts: OUTBOUND_TEAMS },
     { id: "skills", label: "Skills", searchPlaceholder: "Search skills", contacts: OUTBOUND_SKILLS },
+    { id: "assignments", label: "Assignments", searchPlaceholder: "Search assignments", contacts: OUTBOUND_ASSIGNMENTS },
     { id: "customers", label: "Customers", searchPlaceholder: "Search customers", contacts: OUTBOUND_CUSTOMERS },
     { id: "dialpad", label: "Dial Pad", kind: "dialpad" },
   ],
