@@ -286,7 +286,6 @@ function App() {
       draggable
       draggableVariant={aiVariant}
       defaultDraggableWidth={aiWidth}
-      maxDraggableWidth={600}
       defaultDraggableHeight={aiHeight}
       onVariantChange={handleAiVariantChange}
       onWidthChange={setAiWidth}
