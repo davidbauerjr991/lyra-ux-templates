@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
   AppHeader,
@@ -11,33 +11,46 @@ import {
   AgentProfile,
   Container,
   Panel,
+  CustomerInformationPanel,
+  PanelPinButton,
   PageHeader,
   Button,
   Input,
   LeftNav,
   CreateNew,
+  useOutboundAddButton,
+  InteractionNavItem,
+  AgentDashboard,
+  AgentDashboardQueueDrilldown,
+  AGENT_DASHBOARD_QUEUE_ITEMS,
   Tooltip,
+  TabList,
+  ChannelTab,
   type NavItem,
   type CreateNewOutboundConfig,
+  type CreateNewOutboundContact,
+  type InteractionChannel,
+  type ChannelType,
   type AgentStatus,
   type AppMenuGroup,
   type AgentNotification,
   type DraggableVariant,
+  type AgentDashboardContactHistoryEntry,
 } from "@nicecxone/lyra-ui";
 import { CREATE_NEW_AGENTS } from "@nicecxone/lyra-ui/agents-data";
 import { CREATE_NEW_CUSTOMERS } from "@nicecxone/lyra-ui/customers-data";
 import appIcon from "@/assets/app-icon.svg";
 import {
   Home,
-  Users,
-  BookUser,
-  CalendarDays,
+  Search,
+  NotebookPen,
   Settings,
   Plus,
   Phone,
   Mail,
   MessageSquare,
   MessageCircle,
+  User,
 } from "lucide-react";
 
 /* ── App menu builder (needs onNavigate so built inside the component) ── */
@@ -82,6 +95,7 @@ const OUTBOUND_AGENTS: NonNullable<CreateNewOutboundConfig["groups"][number]["co
   subtitle: a.agentId,
   avatarClassName: a.avatarClassName,
   channels: a.channels,
+  status: a.status,
 }));
 
 const OUTBOUND_CUSTOMERS: NonNullable<CreateNewOutboundConfig["groups"][number]["contacts"]> = CREATE_NEW_CUSTOMERS.map((c) => ({
@@ -156,31 +170,98 @@ const OUTBOUND_CONFIG: CreateNewOutboundConfig = {
   pageSize: 10,
 };
 
-/* ── Left nav items ── */
+/* ── Left nav interaction tracking ──
+   Mirrors lyra-ui's `Templates/Agent Next Gen` story ("Agent Next Gen
+   Template") — starting/quick-dialing from `CreateNew` above surfaces a
+   real `InteractionNavItem` card here instead of leaving the rail static,
+   same interaction model as that template and agent-next-gen-v1. See that
+   story's own doc comments for the full rationale behind each piece below;
+   kept in lockstep with it on purpose rather than inventing a different
+   shape, so this app doesn't quietly drift from the template it's based
+   on. */
 
-const NAV_ITEMS: NavItem[] = [
-  {
-    icon: <Home className="h-4 w-4" strokeWidth={1.5} />,
-    label: "Home",
-    active: true,
-  },
-  {
-    icon: <Users className="h-4 w-4" strokeWidth={1.5} />,
-    label: "Contacts",
-  },
-  {
-    icon: <BookUser className="h-4 w-4" strokeWidth={1.5} />,
-    label: "Directory",
-  },
-  {
-    icon: <CalendarDays className="h-4 w-4" strokeWidth={1.5} />,
-    label: "Schedule",
-  },
-  {
-    icon: <Settings className="h-4 w-4" strokeWidth={1.5} />,
-    label: "Settings",
-  },
-];
+interface TrackedChannel {
+  id: string;
+  type: ChannelType;
+  startTick: number;
+  preview?: string;
+  value?: string;
+  /** Human-readable version of `value` for display on this channel's
+   *  `ChannelTab` (e.g. "(456) 383-3329" vs. `value`'s raw "+14563833329").
+   *  See agent-next-gen-v1's own copy of this field for the full rationale. */
+  addressLabel?: string;
+  awaitingResponse?: boolean;
+  /** Synthesized message count/conversation id shown on this channel's
+   *  `ChannelTab` tooltip — see agent-next-gen-v1's own copy of these two
+   *  fields for the full rationale. */
+  messageCount?: number;
+  interactionId?: string;
+}
+
+interface ActiveInteraction {
+  id: string;
+  customerName?: string;
+  /** Customer/agent/team/skill record id shown under the name on this
+   *  interaction's detail page header — the contact's real id
+   *  (`CreateNewOutboundContact.subtitle`) when known, or a freshly
+   *  generated case number (`generateCaseId`) for quick-dialed numbers with
+   *  no matching record. See agent-next-gen-v1's own copy of this field. */
+  recordId: string;
+  channels: TrackedChannel[];
+  /** Which open channel is "current" — shared between this interaction's
+   *  InteractionNavItem card and its ChannelTab bar. See agent-next-gen-v1's
+   *  own copy of this field for the full rationale. */
+  currentChannelId?: string;
+}
+
+/** Fallback case id for interactions with no real record behind them
+ *  (quick-dialed numbers) — see agent-next-gen-v1's own copy. */
+function generateCaseId(): string {
+  return `CS-${Math.floor(1000000 + Math.random() * 9000000)}`;
+}
+
+/** Synthesized per-channel conversation/session id — see agent-next-gen-v1's
+ *  own copy of this helper for the full rationale. */
+function generateInteractionId(): string {
+  return String(Math.floor(100000000000 + Math.random() * 900000000000));
+}
+
+function formatElapsedTime(totalSeconds: number): string {
+  const clamped = Math.max(0, totalSeconds);
+  const mm = Math.floor(clamped / 60);
+  const ss = clamped % 60;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+/* ── Left nav items ──
+   "Home" is built from whether an interaction is currently active (see
+   `activeInteraction` below) rather than a static `active: true`, so it
+   stops showing as active — and becomes clickable to navigate back — the
+   moment an assignment takes over the main content area. See
+   agent-next-gen-v1's own copy of this pattern. */
+
+function buildNavItems(hasActiveInteraction: boolean, onHomeClick: () => void): NavItem[] {
+  return [
+    {
+      icon: <Home className="h-4 w-4" strokeWidth={1.5} />,
+      label: "Home",
+      active: !hasActiveInteraction,
+      onClick: onHomeClick,
+    },
+    {
+      icon: <Search className="h-4 w-4" strokeWidth={1.5} />,
+      label: "Search",
+    },
+    {
+      icon: <NotebookPen className="h-4 w-4" strokeWidth={1.5} />,
+      label: "WEM",
+    },
+    {
+      icon: <Settings className="h-4 w-4" strokeWidth={1.5} />,
+      label: "Settings",
+    },
+  ];
+}
 
 /* ── Sample notifications ── */
 
@@ -221,6 +302,26 @@ export function AgentNextGenPage({
   onNavigate?: (page: Page) => void;
 }) {
   const [navOpen, setNavOpen] = useState(false);
+  // No interactions exist until the agent launches one from the CreateNew
+  // menu (Start Interaction / quick dial) — same pattern as lyra-ui's
+  // `Templates/Agent Next Gen` story. Click any resulting InteractionNavItem
+  // card to make it the active one.
+  const [interactions, setInteractions] = useState<ActiveInteraction[]>([]);
+  const [activeInteractionId, setActiveInteractionId] = useState<string | null>(null);
+  // Drives the main content area — see agent-next-gen-v1's own copy of this
+  // derived value and the PageHeader switch below.
+  const activeInteraction = interactions.find((i) => i.id === activeInteractionId) ?? null;
+  // Shared clock powering every open channel's live "MM:SS since it
+  // started" elapsed display — independent of `elapsedSeconds` below, which
+  // is the agent's own status timer and resets on status change.
+  const [clockTick, setClockTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setClockTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  // Which AgentDashboard queue widget is selected — drives the interior
+  // panel's queue drill-down (see the "Home" body below).
+  const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const [agentStatus, setAgentStatus] = useState<AgentStatus>("available");
@@ -242,6 +343,150 @@ export function AgentNextGenPage({
     setAppMenuOpen(false);
     onNavigate?.(page);
   });
+
+  /* ── Launching interactions from CreateNew ──
+     Overrides OUTBOUND_CONFIG's default onStartCall/onQuickDial (which just
+     console.log) so this page actually surfaces what gets launched as
+     InteractionNavItem cards in the left nav. Mirrors lyra-ui's
+     `Templates/Agent Next Gen` story's own handlers exactly — see that
+     story for the full rationale on each piece. */
+  const handleStartCall = (selection: {
+    contact: CreateNewOutboundContact;
+    channel: ChannelType;
+    phone: string;
+    skillId: string;
+  }) => {
+    const skillLabel = OUTBOUND_CONFIG.skillOptions.find((o) => o.value === selection.skillId)?.label;
+    // `phoneOptions` only has a value→label mapping for phone numbers (raw
+    // digits → formatted display string) — email/WhatsApp addresses are
+    // already human-readable as-is (see `create-new.tsx`'s
+    // `defaultDetailValueFor`, where their `value` and `label` are the same
+    // string), so falling back to `selection.phone` itself is correct there,
+    // not a placeholder.
+    const addressLabel = OUTBOUND_CONFIG.phoneOptions.find((o) => o.value === selection.phone)?.label ?? selection.phone;
+    // A freshly started outbound conversation hasn't exchanged any messages
+    // yet — `0` (not omitted) so the tooltip actually reads "0 Messages"
+    // instead of showing nothing. Voice has no message concept at all, so
+    // it's left `undefined` there — see agent-next-gen-v1's own copy of
+    // this logic for the full rationale.
+    const newChannel: TrackedChannel = {
+      id: `${selection.channel}:${selection.phone}`,
+      type: selection.channel,
+      startTick: clockTick,
+      preview: skillLabel,
+      value: selection.phone,
+      addressLabel,
+      messageCount: selection.channel === "voice" ? undefined : 0,
+      interactionId: generateInteractionId(),
+    };
+
+    setInteractions((prev) => {
+      const idx = prev.findIndex((i) => i.id === selection.contact.id);
+      if (idx === -1) {
+        return [...prev, {
+          id: selection.contact.id,
+          customerName: selection.contact.name,
+          recordId: selection.contact.subtitle ?? generateCaseId(),
+          channels: [newChannel],
+          currentChannelId: newChannel.id,
+        }];
+      }
+      return prev.map((interaction, i) => {
+        if (i !== idx) return interaction;
+        const chIdx = interaction.channels.findIndex((c) => c.id === newChannel.id);
+        const channels = chIdx === -1
+          ? [...interaction.channels, newChannel]
+          : interaction.channels.map((c, j) => (j === chIdx ? newChannel : c));
+        return { ...interaction, channels, currentChannelId: newChannel.id };
+      });
+    });
+    setActiveInteractionId(selection.contact.id);
+    setNavOpen(true);
+  };
+
+  const handleQuickDial = (phoneNumber: string) => {
+    const id = `quickdial:${phoneNumber}`;
+    // Voice has no message concept at all, so `messageCount` is left
+    // undefined here (not `0`) — see the `handleStartCall` comment above.
+    const newChannel: TrackedChannel = {
+      id: "voice",
+      type: "voice",
+      startTick: clockTick,
+      value: phoneNumber,
+      addressLabel: phoneNumber,
+      interactionId: generateInteractionId(),
+    };
+    setInteractions((prev) => {
+      const idx = prev.findIndex((i) => i.id === id);
+      if (idx === -1) return [...prev, { id, recordId: generateCaseId(), channels: [newChannel], currentChannelId: newChannel.id }];
+      return prev.map((interaction, i) => (i === idx ? { ...interaction, channels: [newChannel], currentChannelId: newChannel.id } : interaction));
+    });
+    setActiveInteractionId(id);
+    setNavOpen(true);
+  };
+
+  const handleDismissInteraction = (id: string) => {
+    setInteractions((prev) => prev.filter((interaction) => interaction.id !== id));
+    setActiveInteractionId((current) => (current === id ? null : current));
+  };
+
+  const handleDismissChannel = (id: string, channel: Pick<InteractionChannel, "id" | "type">) => {
+    const dismissedKey = channel.id ?? channel.type;
+    setInteractions((prev) =>
+      prev.map((interaction) => {
+        if (interaction.id !== id) return interaction;
+        const channels = interaction.channels.filter((c) => (c.id ?? c.type) !== dismissedKey);
+        const currentChannelId = interaction.currentChannelId === dismissedKey
+          ? channels[channels.length - 1]?.id
+          : interaction.currentChannelId;
+        return { ...interaction, channels, currentChannelId };
+      })
+    );
+  };
+
+  /** Fired by a card row's `onCurrentChannelChange` or a `ChannelTab`'s
+   *  `onClick` — see `ActiveInteraction.currentChannelId`'s own doc comment. */
+  const handleChannelSelect = (interactionId: string, channelKey: string) => {
+    setInteractions((prev) =>
+      prev.map((interaction) =>
+        interaction.id === interactionId ? { ...interaction, currentChannelId: channelKey } : interaction
+      )
+    );
+  };
+
+  /* ── Preventing duplicate channels from the CreateNew picker ──
+     See lyra-ui's `Templates/Agent Next Gen` story's own `outboundConfig`
+     useMemo for the full rationale — kept identical here. */
+  const outboundConfig = useMemo<CreateNewOutboundConfig>(() => {
+    const openAddressesByContactId = new Map<string, Partial<Record<ChannelType, string[]>>>(
+      interactions.map((interaction) => {
+        const byType: Partial<Record<ChannelType, string[]>> = {};
+        for (const c of interaction.channels) {
+          if (!c.value) continue;
+          (byType[c.type] ??= []).push(c.value);
+        }
+        return [interaction.id, byType];
+      })
+    );
+    return {
+      ...OUTBOUND_CONFIG,
+      groups: OUTBOUND_CONFIG.groups.map((group) => {
+        if (!group.contacts) return group;
+        return {
+          ...group,
+          contacts: group.contacts.map((contact) => {
+            const openChannelAddresses = openAddressesByContactId.get(contact.id);
+            if (!openChannelAddresses || Object.keys(openChannelAddresses).length === 0) return contact;
+            return { ...contact, openChannelAddresses };
+          }),
+        };
+      }),
+    };
+  }, [interactions]);
+
+  // Same shared hook every "Agent Next Gen" consumer uses for the "+" button
+  // on each InteractionNavItem card — see create-new.tsx's own doc comment.
+  const { launchRequest: outboundLaunchRequest, onLaunchRequestHandled, getHeaderAction } = useOutboundAddButton(outboundConfig);
 
   /* Panel animation state machine — see AgentNextGenTemplate.stories.tsx for full comment */
   type PanelState = "closed" | "open" | "closing";
@@ -283,6 +528,14 @@ export function AgentNextGenPage({
   const [sidePanelResizing,  setSidePanelResizing]  = useState(false);
   const [sidePanelWidth,     setSidePanelWidth]     = useState(256);
   const [containerWidth,     setContainerWidth]     = useState(9999);
+  // Once the icon has explicitly pinned-then-closed the panel (see
+  // `handleSidePanelIconToggle`), hovering the icon again must NOT
+  // auto-reopen it — that would override a deliberate "close" decision.
+  // From that point on, only another click reopens it. Starts `true` so
+  // the very first hover (before anything has ever been pinned) still
+  // works as a preview. See agent-next-gen-v1's own copy of this state
+  // for the full rationale.
+  const [sidePanelHoverEnabled, setSidePanelHoverEnabled] = useState(true);
   const sidePanelTimer = useRef<ReturnType<typeof setTimeout>>();
 
   // Track container width to force unpinned below 768px
@@ -298,6 +551,30 @@ export function AgentNextGenPage({
   const isNarrowContainer = containerWidth < 768;
   // When narrow: force overlay mode and hide pin button
   const effectivePinned = isNarrowContainer ? false : sidePanelPinned;
+
+  // Close (and fully unpin) the Designer panel the moment the container
+  // drops below 768px, and make sure hover-preview is re-armed. See
+  // agent-next-gen-v1's own copy of this effect for the full rationale.
+  useEffect(() => {
+    if (isNarrowContainer) {
+      setSidePanelOpen(false);
+      setSidePanelPinned(false);
+      setSidePanelHoverEnabled(true);
+    }
+  }, [isNarrowContainer]);
+
+  // The Designer panel belongs to the interaction it was opened from — its
+  // only trigger is the record icon on the interaction `PageHeader`, which
+  // doesn't exist on the Home dashboard. Leaving the interaction must close
+  // it the same way narrowing the container does above. See
+  // agent-next-gen-v1's own copy of this effect for the full rationale.
+  useEffect(() => {
+    if (!activeInteractionId) {
+      setSidePanelOpen(false);
+      setSidePanelPinned(false);
+      setSidePanelHoverEnabled(true);
+    }
+  }, [activeInteractionId]);
 
   // Track window width for nav overlay breakpoint
   useEffect(() => {
@@ -329,15 +606,33 @@ export function AgentNextGenPage({
   }, [isNavNarrow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSidePanelHoverStart = () => {
+    if (!sidePanelHoverEnabled) return;
     clearTimeout(sidePanelTimer.current);
     setSidePanelOpen(true);
   };
+  // Guarded on `sidePanelPinned`: once the icon has pinned the panel open,
+  // moving the mouse away must NOT auto-close it after the delay below.
+  // See agent-next-gen-v1's own copy of this handler for the full rationale.
   const onSidePanelHoverEnd = () => {
+    if (sidePanelPinned) return;
     sidePanelTimer.current = setTimeout(() => setSidePanelOpen(false), 300);
   };
   const handleSidePanelPinToggle = () => {
     setSidePanelPinned((v) => !v);
     setSidePanelOpen(true);
+  };
+  /* Click on the interaction record icon (see the `icon` prop on that
+     PageHeader below) — distinct from `handleSidePanelPinToggle` above
+     (the panel's own internal pin button), which always leaves the panel
+     open. This one is a real on/off toggle: click once to pin the Designer
+     panel open, click again to unpin *and* close it. See agent-next-gen-v1's
+     own copy of this handler for the full rationale. */
+  const handleSidePanelIconToggle = () => {
+    clearTimeout(sidePanelTimer.current);
+    const nextPinned = !sidePanelPinned;
+    setSidePanelPinned(nextPinned);
+    setSidePanelOpen(nextPinned);
+    if (!nextPinned) setSidePanelHoverEnabled(false);
   };
 
   const MAX_PANEL_HEIGHT = 860;
@@ -607,11 +902,62 @@ export function AgentNextGenPage({
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
         <LeftNav
-          items={NAV_ITEMS}
+          items={buildNavItems(Boolean(activeInteraction), () => setActiveInteractionId(null))}
           open={navOpen}
           onToggle={() => setNavOpen((v) => !v)}
           overlay={isNavNarrow}
-          header={<CreateNew title="New Outbound" outbound={OUTBOUND_CONFIG} expanded={navOpen} />}
+          pinnedHeader={
+            <CreateNew
+              title="New Outbound"
+              outbound={{
+                ...outboundConfig,
+                onStartCall: handleStartCall,
+                onQuickDial: handleQuickDial,
+                launchRequest: outboundLaunchRequest,
+                onLaunchRequestHandled,
+              }}
+              expanded={navOpen}
+            />
+          }
+          header={
+            <>
+              {/* No cards until the agent actually starts one above — each
+                  card is one contact (or quick-dialed number), with every
+                  channel they're being reached on folded into that same
+                  card. See lyra-ui's `Templates/Agent Next Gen` story for
+                  the merge-by-type+address rationale. */}
+              {interactions.map((interaction) => {
+                const mostRecentId = interaction.channels[interaction.channels.length - 1]?.id;
+                const currentId = interaction.currentChannelId ?? mostRecentId;
+                const channels: InteractionChannel[] = interaction.channels.map((c) => ({
+                  id: c.id,
+                  type: c.type,
+                  elapsed: formatElapsedTime(clockTick - c.startTick),
+                  preview: c.preview,
+                  current: c.id === currentId,
+                  awaitingResponse: c.awaitingResponse ?? false,
+                }));
+                const earliestStart = Math.min(...interaction.channels.map((c) => c.startTick));
+                return (
+                  <InteractionNavItem
+                    key={interaction.id}
+                    customerName={interaction.customerName}
+                    active={activeInteractionId === interaction.id}
+                    onClick={() => setActiveInteractionId(interaction.id)}
+                    awaitingResponse={channels.some((c) => c.awaitingResponse)}
+                    elapsed={formatElapsedTime(clockTick - earliestStart)}
+                    expanded={navOpen}
+                    channels={channels}
+                    onDismiss={() => handleDismissInteraction(interaction.id)}
+                    onDismissChannel={(channel) => handleDismissChannel(interaction.id, channel)}
+                    headerAction={getHeaderAction(interaction.id)}
+                    currentChannelKey={currentId}
+                    onCurrentChannelChange={(key) => handleChannelSelect(interaction.id, key)}
+                  />
+                );
+              })}
+            </>
+          }
         />
 
         {/* Content area — flex-1 shrinks to give space to docked panels.
@@ -622,77 +968,27 @@ export function AgentNextGenPage({
               relative so unpinned Panel can overlay the full surface. */}
           <Container className="flex flex-1 overflow-hidden relative">
 
-            {/* Pinned Panel — flex sibling, pushes everything (incl. PageHeader) to the right */}
-            {showPanelToggle && effectivePinned && (
-              <Panel
-                variant="side"
+            {/* Customer Information Panel — one instance whose `pinned` prop
+                just flips Panel's own internal inline-vs-overlay branch,
+                matching Panel.stories.tsx's "Side Panel" story (a single
+                element, props toggle) so the width transition animates
+                correctly — two separately-gated `<Panel>` elements would
+                unmount/remount on every toggle instead of animating. Gated
+                on `activeInteraction`, not just `showPanelToggle` — its only
+                trigger is the record icon on the interaction `PageHeader`
+                below, which doesn't exist on the Home dashboard.
+                Was a bare `<Panel headerTitle="Designer" .../>` with no body
+                content — swapped for `CustomerInformationPanel` (lyra-ui),
+                which fixes the header to "Customer Information" and adds a
+                "{name} · {id}" subhead for whoever this interaction is
+                with. See agent-next-gen-v1's own copy of this block for the
+                full rationale. */}
+            {showPanelToggle && activeInteraction && (
+              <CustomerInformationPanel
                 side="left"
                 open={sidePanelOpen}
-                pinned
-                headerTitle="Designer"
-                onPinToggle={handleSidePanelPinToggle}
-                width={sidePanelWidth}
-                onWidthChange={setSidePanelWidth}
-              />
-            )}
-
-            {/* Content column: PageHeader + page body */}
-            <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-              {showPageHeader && (
-                <PageHeader
-                  title="Home"
-                  panelToggle={
-                    showPanelToggle && showInteriorPanel ? "both"
-                    : showPanelToggle ? "left"
-                    : showInteriorPanel ? "right"
-                    : undefined
-                  }
-                  panelPinned={effectivePinned}
-                  onPanelToggle={effectivePinned ? () => setSidePanelOpen((v) => !v) : undefined}
-                  onPanelHoverStart={!effectivePinned ? onSidePanelHoverStart : undefined}
-                  onPanelHoverEnd={!effectivePinned ? onSidePanelHoverEnd : undefined}
-                  onInnerPanelToggle={showInteriorPanel ? () => setInteriorPanelOpen((v) => !v) : undefined}
-                  actions={
-                    <>
-                      <Button variant="outline">Export</Button>
-                      <Button>
-                        <Plus className="h-4 w-4" strokeWidth={1.5} />
-                        New Case
-                      </Button>
-                    </>
-                  }
-                />
-              )}
-              {/* Body row: main content + interior panel */}
-              <div className="relative flex flex-1 overflow-hidden">
-                <div className="flex-1" />
-                {showInteriorPanel && (
-                  <Panel
-                    variant="interior"
-                    side="right"
-                    open={interiorPanelOpen}
-                    headerTitle="Case Details"
-                    onClose={() => setInteriorPanelOpen(false)}
-                  >
-                    <div className="flex flex-col gap-4 px-4 py-4">
-                      <Input label="Subject" placeholder="Enter subject" />
-                      <Input label="Priority" placeholder="Select priority" />
-                      <Input label="Assignee" placeholder="Search agents" />
-                      <Input label="Tags" placeholder="Add tags" />
-                    </div>
-                  </Panel>
-                )}
-              </div>
-            </div>
-
-            {/* Unpinned Panel — absolute overlay covering full Container incl. PageHeader */}
-            {showPanelToggle && !effectivePinned && (
-              <Panel
-                variant="side"
-                side="left"
-                open={sidePanelOpen}
-                pinned={false}
-                headerTitle="Designer"
+                pinned={effectivePinned}
+                person={{ name: activeInteraction.customerName ?? "Customer", id: activeInteraction.recordId }}
                 onPinToggle={isNarrowContainer ? undefined : handleSidePanelPinToggle}
                 width={sidePanelWidth}
                 onWidthChange={setSidePanelWidth}
@@ -701,6 +997,162 @@ export function AgentNextGenPage({
                 onMouseLeave={sidePanelResizing ? undefined : onSidePanelHoverEnd}
               />
             )}
+
+            {/* Content column: PageHeader + page body */}
+            <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+              {activeInteraction ? (
+                // ── Active interaction's detail page — replaces the "Home"
+                // dashboard the moment a new assignment is started/quick-
+                // dialed (see `activeInteraction` above). Just the record
+                // header for now; the blank body below is where a real
+                // case/contact detail view will go. Reverts back
+                // automatically once the interaction is dismissed
+                // (`activeInteractionId` clears). See agent-next-gen-v1's
+                // own copy of this switch.
+                <>
+                  {showPageHeader && (
+                    <PageHeader
+                      // Hovering this record icon reveals the Designer side
+                      // panel; clicking it is a real on/off toggle
+                      // (`handleSidePanelIconToggle`) via the shared
+                      // `PanelPinButton` atom — the same trigger `Panel`'s
+                      // own internal pin button uses, just with its icon
+                      // swapped to `User`. `iconAriaHidden={false}` because
+                      // this slot is no longer decorative. See
+                      // agent-next-gen-v1's own copy of this block for the
+                      // full rationale.
+                      icon={
+                        <span
+                          onMouseEnter={onSidePanelHoverStart}
+                          onMouseLeave={sidePanelResizing ? undefined : onSidePanelHoverEnd}
+                        >
+                          <PanelPinButton
+                            pinned={sidePanelPinned}
+                            onToggle={handleSidePanelIconToggle}
+                            icon={<User className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+                            pinnedLabel="Unpin Designer panel"
+                            unpinnedLabel="Pin Designer panel"
+                          />
+                        </span>
+                      }
+                      iconAriaHidden={false}
+                      title={activeInteraction.customerName ?? "Customer"}
+                      subtitle={activeInteraction.recordId}
+                    />
+                  )}
+                  {/* One tab per open channel — kept in sync with the same
+                      interaction's InteractionNavItem card via
+                      currentChannelId/handleChannelSelect. Shown even with
+                      just one channel open. See agent-next-gen-v1's own
+                      copy of this block. */}
+                  {showPageHeader && activeInteraction.channels.length > 0 && (
+                    <TabList className="px-6 bg-lyra-bg-surface-base shrink-0 lyra-channel-tab-list-wrap">
+                      {activeInteraction.channels.map((c) => {
+                        const key = c.id ?? c.type;
+                        return (
+                          <ChannelTab
+                            key={key}
+                            type={c.type}
+                            address={c.addressLabel}
+                            messageCount={c.messageCount}
+                            interactionId={c.interactionId}
+                            active={(activeInteraction.currentChannelId ?? activeInteraction.channels[activeInteraction.channels.length - 1]?.id) === key}
+                            onClick={() => handleChannelSelect(activeInteraction.id, key)}
+                            onDismiss={() => {
+                              if (activeInteraction.channels.length > 1) handleDismissChannel(activeInteraction.id, c);
+                              else handleDismissInteraction(activeInteraction.id);
+                            }}
+                          />
+                        );
+                      })}
+                    </TabList>
+                  )}
+                  <div className="flex-1 overflow-y-auto" />
+                </>
+              ) : (
+                <>
+                  {showPageHeader && (
+                    <PageHeader
+                      title="Home"
+                      panelToggle={
+                        showPanelToggle && showInteriorPanel ? "both"
+                        : showPanelToggle ? "left"
+                        : showInteriorPanel ? "right"
+                        : undefined
+                      }
+                      panelPinned={effectivePinned}
+                      onPanelToggle={effectivePinned ? () => setSidePanelOpen((v) => !v) : undefined}
+                      onPanelHoverStart={!effectivePinned ? onSidePanelHoverStart : undefined}
+                      onPanelHoverEnd={!effectivePinned ? onSidePanelHoverEnd : undefined}
+                      onInnerPanelToggle={showInteriorPanel ? () => setInteriorPanelOpen((v) => !v) : undefined}
+                      actions={
+                        <>
+                          <Button variant="outline">Export</Button>
+                          <Button>
+                            <Plus className="h-4 w-4" strokeWidth={1.5} />
+                            New Case
+                          </Button>
+                        </>
+                      }
+                    />
+                  )}
+                  {/* Body row: main content + interior panel
+                      Main content is lyra-ui's `AgentDashboard` (Templates/
+                      Dashboards) — the same Home tab agent-next-gen-v1 renders,
+                      promoted into a real shared component precisely so this
+                      app doesn't need its own hand-copied version. See that
+                      component's own doc comment (agent-dashboard.tsx). */}
+                  <div className="relative flex flex-1 overflow-hidden">
+                    <div className="flex flex-1 flex-col min-w-0 overflow-y-auto px-6 py-6">
+                      <AgentDashboard
+                        agentFirstName="John"
+                        onRedial={(entry: AgentDashboardContactHistoryEntry) => {
+                          // eslint-disable-next-line no-console
+                          console.log("Redial:", entry.name);
+                        }}
+                        selectedQueueId={selectedQueueId}
+                        onSelectQueueId={setSelectedQueueId}
+                      />
+                    </div>
+                    {showInteriorPanel && (
+                      <Panel
+                        variant="interior"
+                        side="right"
+                        // Reuses this one docked slot for two different jobs —
+                        // the pre-existing "Case Details" form and the queue
+                        // drill-down opened from AgentDashboard — same
+                        // dual-purpose pattern agent-next-gen-v1 uses for the
+                        // same reason (only one detail view is ever relevant at
+                        // a time). `selectedQueueId` takes priority in both the
+                        // open condition and the content switch below.
+                        open={interiorPanelOpen || Boolean(selectedQueueId)}
+                        headerTitle={
+                          selectedQueueId
+                            ? AGENT_DASHBOARD_QUEUE_ITEMS.find((item) => item.id === selectedQueueId)?.name ?? "Queue"
+                            : "Case Details"
+                        }
+                        onClose={() => {
+                          setInteriorPanelOpen(false);
+                          setSelectedQueueId(null);
+                        }}
+                      >
+                        {selectedQueueId ? (
+                          <AgentDashboardQueueDrilldown queueId={selectedQueueId} />
+                        ) : (
+                          <div className="flex flex-col gap-4 px-4 py-4">
+                            <Input label="Subject" placeholder="Enter subject" />
+                            <Input label="Priority" placeholder="Select priority" />
+                            <Input label="Assignee" placeholder="Search agents" />
+                            <Input label="Tags" placeholder="Add tags" />
+                          </div>
+                        )}
+                      </Panel>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
           </Container>
 
           {/* Notifications — float (CSS transitions, not keyframe animations — avoids compositor fill-mode flash) */}
