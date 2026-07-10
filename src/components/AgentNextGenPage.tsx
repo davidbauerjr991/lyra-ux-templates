@@ -295,19 +295,43 @@ export function AgentNextGenPage({
   showPanelToggle = false,
   showInteriorPanel = true,
   onNavigate,
+  initialInteraction,
+  sidePanelToggleLabel,
 }: {
   showPageHeader?: boolean;
   showPanelToggle?: boolean;
   showInteriorPanel?: boolean;
   onNavigate?: (page: Page) => void;
+  /**
+   * Seeds `interactions`/`activeInteractionId` with an already-active call
+   * instead of starting empty — mirrors lyra-ui's `AgentNextGenTemplate`
+   * "Active Interaction" story prop of the same name (see that story's own
+   * doc comment for the full rationale). Not passed anywhere in this app
+   * today — kept as an opt-in capability so this component stays in sync
+   * with the canonical template's shape, not to change default behavior.
+   */
+  initialInteraction?: ActiveInteraction;
+  /**
+   * Overrides the record-header `PanelPinButton`'s tooltip (both pinned and
+   * unpinned label, since "Toggle Overview" describes the action generically
+   * rather than a pin/unpin pair) — mirrors lyra-ui's `AgentNextGenTemplate`
+   * prop of the same name. Defaults to "Toggle Overview" here too, matching
+   * that template's current copy; pass a different string to override it.
+   */
+  sidePanelToggleLabel?: string;
 }) {
-  const [navOpen, setNavOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(!!initialInteraction);
   // No interactions exist until the agent launches one from the CreateNew
   // menu (Start Interaction / quick dial) — same pattern as lyra-ui's
   // `Templates/Agent Next Gen` story. Click any resulting InteractionNavItem
-  // card to make it the active one.
-  const [interactions, setInteractions] = useState<ActiveInteraction[]>([]);
-  const [activeInteractionId, setActiveInteractionId] = useState<string | null>(null);
+  // card to make it the active one. `initialInteraction` (see above) seeds
+  // this instead, for callers that want to start already mid-call.
+  const [interactions, setInteractions] = useState<ActiveInteraction[]>(
+    () => (initialInteraction ? [initialInteraction] : [])
+  );
+  const [activeInteractionId, setActiveInteractionId] = useState<string | null>(
+    () => initialInteraction?.id ?? null
+  );
   // Drives the main content area — see agent-next-gen-v1's own copy of this
   // derived value and the PageHeader switch below.
   const activeInteraction = interactions.find((i) => i.id === activeInteractionId) ?? null;
@@ -528,14 +552,6 @@ export function AgentNextGenPage({
   const [sidePanelResizing,  setSidePanelResizing]  = useState(false);
   const [sidePanelWidth,     setSidePanelWidth]     = useState(256);
   const [containerWidth,     setContainerWidth]     = useState(9999);
-  // Once the icon has explicitly pinned-then-closed the panel (see
-  // `handleSidePanelIconToggle`), hovering the icon again must NOT
-  // auto-reopen it — that would override a deliberate "close" decision.
-  // From that point on, only another click reopens it. Starts `true` so
-  // the very first hover (before anything has ever been pinned) still
-  // works as a preview. See agent-next-gen-v1's own copy of this state
-  // for the full rationale.
-  const [sidePanelHoverEnabled, setSidePanelHoverEnabled] = useState(true);
   const sidePanelTimer = useRef<ReturnType<typeof setTimeout>>();
 
   // Track container width to force unpinned below 768px
@@ -553,13 +569,12 @@ export function AgentNextGenPage({
   const effectivePinned = isNarrowContainer ? false : sidePanelPinned;
 
   // Close (and fully unpin) the Designer panel the moment the container
-  // drops below 768px, and make sure hover-preview is re-armed. See
-  // agent-next-gen-v1's own copy of this effect for the full rationale.
+  // drops below 768px. See agent-next-gen-v1's own copy of this effect for
+  // the full rationale.
   useEffect(() => {
     if (isNarrowContainer) {
       setSidePanelOpen(false);
       setSidePanelPinned(false);
-      setSidePanelHoverEnabled(true);
     }
   }, [isNarrowContainer]);
 
@@ -572,7 +587,6 @@ export function AgentNextGenPage({
     if (!activeInteractionId) {
       setSidePanelOpen(false);
       setSidePanelPinned(false);
-      setSidePanelHoverEnabled(true);
     }
   }, [activeInteractionId]);
 
@@ -605,8 +619,13 @@ export function AgentNextGenPage({
     }
   }, [isNavNarrow]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // No hidden gating here — matches lyra-ui's `Panel.stories.tsx` "Side
+  // Panel" story, where `pinned` and `open` are two plain, independent
+  // booleans and nothing about toggling one disables the other's normal
+  // control going forward. Hovering the icon always previews the panel
+  // while unpinned. See agent-next-gen-v1's own copy of this handler for
+  // the full rationale.
   const onSidePanelHoverStart = () => {
-    if (!sidePanelHoverEnabled) return;
     clearTimeout(sidePanelTimer.current);
     setSidePanelOpen(true);
   };
@@ -632,7 +651,6 @@ export function AgentNextGenPage({
     const nextPinned = !sidePanelPinned;
     setSidePanelPinned(nextPinned);
     setSidePanelOpen(nextPinned);
-    if (!nextPinned) setSidePanelHoverEnabled(false);
   };
 
   const MAX_PANEL_HEIGHT = 860;
@@ -1030,8 +1048,8 @@ export function AgentNextGenPage({
                             pinned={sidePanelPinned}
                             onToggle={handleSidePanelIconToggle}
                             icon={<User className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
-                            pinnedLabel="Unpin Designer panel"
-                            unpinnedLabel="Pin Designer panel"
+                            pinnedLabel={sidePanelToggleLabel ?? "Toggle Overview"}
+                            unpinnedLabel={sidePanelToggleLabel ?? "Toggle Overview"}
                           />
                         </span>
                       }
