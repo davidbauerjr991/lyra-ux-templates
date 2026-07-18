@@ -11,11 +11,12 @@ import {
   AgentNotifications,
   AgentProfile,
   Container,
-  Panel,
+  InteriorPanel,
   CustomerInformationPanel,
   PanelPinButton,
   PageHeader,
   Button,
+  ActionIconButton,
   Input,
   LeftNav,
   CreateNew,
@@ -24,7 +25,7 @@ import {
   AgentDashboard,
   AgentDashboardQueueDrilldown,
   AGENT_DASHBOARD_QUEUE_ITEMS,
-  Tooltip,
+  AGENT_DASHBOARD_QUEUE_SUB_ITEMS,
   TabList,
   ChannelTab,
   type NavItem,
@@ -610,19 +611,18 @@ export function AgentNextGenPage({
     }
   }, [isNavNarrow]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // No hidden gating here — matches lyra-ui's `Panel.stories.tsx` "Side
-  // Panel" story, where `pinned` and `open` are two plain, independent
-  // booleans and nothing about toggling one disables the other's normal
-  // control going forward. Hovering the icon always previews the panel
-  // while unpinned. See agent-next-gen-v1's own copy of this handler for
-  // the full rationale.
+  // Both guarded on `sidePanelPinned` — matches `admin-shell.tsx`'s
+  // `handleLeftHoverStart`/`handleLeftHoverEnd` (the canonical `SidePanel`
+  // reference): hover previews the panel while *unpinned* only. Once
+  // pinned, hover does nothing at all in either direction — open/closed is
+  // controlled exclusively by the click toggle (`handleSidePanelIconToggle`)
+  // while pinned, same as every other `SidePanel` consumer in this system.
+  // See agent-next-gen-v1's own copy of this handler for the full rationale.
   const onSidePanelHoverStart = () => {
+    if (sidePanelPinned) return;
     clearTimeout(sidePanelTimer.current);
     setSidePanelOpen(true);
   };
-  // Guarded on `sidePanelPinned`: once the icon has pinned the panel open,
-  // moving the mouse away must NOT auto-close it after the delay below.
-  // See agent-next-gen-v1's own copy of this handler for the full rationale.
   const onSidePanelHoverEnd = () => {
     if (sidePanelPinned) return;
     sidePanelTimer.current = setTimeout(() => setSidePanelOpen(false), 300);
@@ -632,16 +632,19 @@ export function AgentNextGenPage({
     setSidePanelOpen(true);
   };
   /* Click on the interaction record icon (see the `icon` prop on that
-     PageHeader below) — distinct from `handleSidePanelPinToggle` above
-     (the panel's own internal pin button), which always leaves the panel
-     open. This one is a real on/off toggle: click once to pin the Designer
-     panel open, click again to unpin *and* close it. See agent-next-gen-v1's
-     own copy of this handler for the full rationale. */
+     PageHeader below) — toggles open/closed only, and only while already
+     pinned (the same pattern already used a bit further down for the
+     "Home" page's own `PageHeader.onPanelToggle`, and matching
+     admin-shell.tsx's handleLeftToggle/handleRightToggle: a no-op while
+     unpinned, since that state is hover-driven instead). Deliberately does
+     NOT touch `sidePanelPinned` — pinning/unpinning is
+     `handleSidePanelPinToggle`'s job alone (the panel's own internal pin
+     button). This used to also flip `sidePanelPinned` to match, which
+     meant "closing" a pinned panel via this icon silently unpinned it too.
+     See agent-next-gen-v1's own copy of this handler for the full
+     rationale. */
   const handleSidePanelIconToggle = () => {
-    clearTimeout(sidePanelTimer.current);
-    const nextPinned = !sidePanelPinned;
-    setSidePanelPinned(nextPinned);
-    setSidePanelOpen(nextPinned);
+    if (effectivePinned) setSidePanelOpen((v) => !v);
   };
 
   const MAX_PANEL_HEIGHT = 860;
@@ -879,17 +882,21 @@ export function AgentNextGenPage({
               onOpenChange={setNotifOpen}
               renderPanel={false}
             />
-            <Tooltip content="Ask AI" placement="bottom" asLabel>
-              <button
-                type="button"
-                aria-label="Ask AI"
-                aria-expanded={aiPanelOpen}
-                onClick={() => setAiPanelOpen((v) => !v)}
-                className={`relative flex h-10 w-10 items-center justify-center rounded-lyra-lg text-lyra-fg-default transition-colors hover:bg-lyra-state-hover active:bg-lyra-state-pressed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lyra-border-focus ${aiPanelOpen ? "bg-lyra-state-hover" : ""}`}
-              >
-                <AiSparkleIcon />
-              </button>
-            </Tooltip>
+            {/* Ask AI trigger — now goes through lyra-ui's `ActionIconButton`
+                (`size="xl"`, 44px), the single canonical AppHeader
+                icon-button shape (lyra-ui consolidated `NotificationsBell`
+                and `ActionIconButton` onto one shared `Button`-backed
+                implementation, replacing the hand-rolled `h-10
+                rounded-lyra-lg` button this used to be). */}
+            <ActionIconButton
+              size="xl"
+              title="Ask AI"
+              aria-expanded={aiPanelOpen}
+              onClick={() => setAiPanelOpen((v) => !v)}
+              className={aiPanelOpen ? "bg-lyra-state-hover" : undefined}
+            >
+              <AiSparkleIcon />
+            </ActionIconButton>
             <AgentProfile
               name="John Smith"
               initials="JS"
@@ -971,25 +978,26 @@ export function AgentNextGenPage({
             ref used to position float panels. */}
         <div ref={containerRef} className="relative flex flex-1 min-w-0 overflow-hidden pr-3 pb-3">
 
-          {/* Main Container — flex row so pinned Panel sits left of PageHeader + content.
-              relative so unpinned Panel can overlay the full surface. */}
+          {/* Main Container — flex row so pinned SidePanel sits left of PageHeader + content.
+              relative so unpinned SidePanel can overlay the full surface. */}
           <Container className="flex flex-1 overflow-hidden relative">
 
             {/* Customer Information Panel — one instance whose `pinned` prop
-                just flips Panel's own internal inline-vs-overlay branch,
-                matching Panel.stories.tsx's "Side Panel" story (a single
-                element, props toggle) so the width transition animates
-                correctly — two separately-gated `<Panel>` elements would
-                unmount/remount on every toggle instead of animating. Gated
-                on `activeInteraction`, not just `showPanelToggle` — its only
-                trigger is the record icon on the interaction `PageHeader`
-                below, which doesn't exist on the Home dashboard.
-                Was a bare `<Panel headerTitle="Designer" .../>` with no body
-                content — swapped for `CustomerInformationPanel` (lyra-ui),
-                which fixes the header to "Customer Information" and adds a
-                "{name} · {id}" subhead for whoever this interaction is
-                with. See agent-next-gen-v1's own copy of this block for the
-                full rationale. */}
+                just flips SidePanel's own internal inline-vs-overlay branch,
+                matching SidePanel.stories.tsx's "Side Panel — Left/Right"
+                stories (a single element, props toggle) so the width
+                transition animates correctly — two separately-gated
+                `<SidePanel>` elements would unmount/remount on every toggle
+                instead of animating. Gated on `activeInteraction`, not just
+                `showPanelToggle` — its only trigger is the record icon on
+                the interaction `PageHeader` below, which doesn't exist on
+                the Home dashboard.
+                Was a bare `<SidePanel headerTitle="Designer" .../>` with no
+                body content — swapped for `CustomerInformationPanel`
+                (lyra-ui), which fixes the header to "Customer Information"
+                and adds a "{name} · {id}" subhead for whoever this
+                interaction is with. See agent-next-gen-v1's own copy of
+                this block for the full rationale. */}
             {showPanelToggle && activeInteraction && (
               <CustomerInformationPanel
                 side="left"
@@ -1122,8 +1130,7 @@ export function AgentNextGenPage({
                       />
                     </div>
                     {showInteriorPanel && (
-                      <Panel
-                        variant="interior"
+                      <InteriorPanel
                         side="right"
                         // Reuses this one docked slot for two different jobs —
                         // the pre-existing "Case Details" form and the queue
@@ -1137,6 +1144,14 @@ export function AgentNextGenPage({
                           selectedQueueId
                             ? AGENT_DASHBOARD_QUEUE_ITEMS.find((item) => item.id === selectedQueueId)?.name ?? "Queue"
                             : "Case Details"
+                        }
+                        // "{n} Skills" — same count as the queue widget's own
+                        // Skills metric, mirrors agent-next-gen-v1's own
+                        // InteriorPanel usage for this same drill-down.
+                        headerSubhead={
+                          selectedQueueId
+                            ? `${(AGENT_DASHBOARD_QUEUE_SUB_ITEMS[selectedQueueId] ?? []).length} Skills`
+                            : undefined
                         }
                         onClose={() => {
                           setInteriorPanelOpen(false);
@@ -1153,7 +1168,7 @@ export function AgentNextGenPage({
                             <Input label="Tags" placeholder="Add tags" />
                           </div>
                         )}
-                      </Panel>
+                      </InteriorPanel>
                     )}
                   </div>
                 </>
